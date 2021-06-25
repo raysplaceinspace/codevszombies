@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod collections {
     pub fn min_by_fkey<T, F>(vec: &Vec<T>, selector: F) -> Option<&T>
     where F: Fn(&T) -> f32 {
@@ -6,7 +8,7 @@ mod collections {
         let mut result_value = f32::INFINITY;
         for item in vec.iter() {
             let value = selector(&item);
-            if (value < result_value) {
+            if value < result_value {
                 result = Some(&item);
                 result_value = value;
             }
@@ -63,10 +65,10 @@ mod geometry {
         }
 
         pub fn length(self) -> f32 {
-            self.lengthSquared().sqrt()
+            self.length_squared().sqrt()
         }
 
-        pub fn lengthSquared(self) -> f32 {
+        pub fn length_squared(self) -> f32 {
             self.x.powf(2.0) + self.y.powf(2.0)
         }
 
@@ -74,25 +76,25 @@ mod geometry {
             V2::diff(b, a).length()
         }
 
-        pub fn distanceSquared(a: V2, b: V2) -> f32 {
-            V2::diff(b, a).lengthSquared()
+        pub fn distance_squared(a: V2, b: V2) -> f32 {
+            V2::diff(b, a).length_squared()
         }
 
-        pub fn distanceTo(self, target: V2) -> f32 {
+        pub fn distance_to(self, target: V2) -> f32 {
             V2::distance(self, target)
         }
 
-        pub fn distanceToSquared(self, target: V2) -> f32 {
-            V2::distanceSquared(self, target)
+        pub fn distance_to_squared(self, target: V2) -> f32 {
+            V2::distance_squared(self, target)
         }
 
-        pub fn towards(self, target: V2, maxStep: f32) -> V2 {
+        pub fn towards(self, target: V2, max_step: f32) -> V2 {
             let diff = V2::diff(target, self);
             let distance = diff.length();
-            if distance < maxStep {
+            if distance < max_step {
                 return target;
             } else if distance > 0.0 {
-                return self.add(diff.mul(maxStep / distance));
+                return self.add(diff.mul(max_step / distance));
             } else {
                 return self;
             }
@@ -152,7 +154,7 @@ mod parser {
         let input_line = read_line();
         let human_count = parse_input!(input_line, i32);
         let mut humans = Vec::<Human>::new();
-        for i in 0..human_count as usize {
+        for _ in 0..human_count as usize {
             let input_line = read_line();
             humans.push(parse_human(&input_line));
         }
@@ -161,7 +163,7 @@ mod parser {
         io::stdin().read_line(&mut input_line).unwrap();
         let zombie_count = parse_input!(input_line, i32);
         let mut zombies = Vec::<Zombie>::new();
-        for i in 0..zombie_count as usize {
+        for _ in 0..zombie_count as usize {
             let input_line = read_line();
             zombies.push(parse_zombie(&input_line));
         }
@@ -226,24 +228,24 @@ mod simulator {
 
     pub fn next(initial: &World, action: &Action) -> SimulationResult {
         let mut world = initial.clone();
-        moveZombies(&mut world);
-        moveAsh(&mut world, &action);
-        destroyZombies(&mut world);
-        destroyHumans(&mut world);
-        updateZombieTargets(&mut world);
+        move_zombies(&mut world);
+        move_ash(&mut world, &action);
+        destroy_zombies(&mut world);
+        destroy_humans(&mut world);
+        update_zombie_targets(&mut world);
         SimulationResult { world }
     }
 
-    fn moveZombies(world: &mut World) {
+    fn move_zombies(world: &mut World) {
         for zombie in world.zombies.iter_mut() {
             zombie.pos = zombie.next;
         }
     }
 
-    fn updateZombieTargets(world: &mut World) {
+    fn update_zombie_targets(world: &mut World) {
         for zombie in world.zombies.iter_mut() {
-            let closestHuman = collections::min_by_fkey(&world.humans, |human| human.pos.distanceToSquared(zombie.pos));
-            match closestHuman {
+            let closest_human = collections::min_by_fkey(&world.humans, |human| human.pos.distance_to_squared(zombie.pos));
+            match closest_human {
                 Some(human) => {
                     zombie.next = zombie.pos.towards(human.pos, constants::MAX_ZOMBIE_STEP);
                 },
@@ -252,21 +254,21 @@ mod simulator {
         }
     }
 
-    fn moveAsh(world: &mut World, action: &Action) {
+    fn move_ash(world: &mut World, action: &Action) {
         world.pos = world.pos.towards(action.target, constants::MAX_ASH_STEP);
     }
 
-    fn destroyZombies(world: &mut World) {
-        let maxDistanceSquared = constants::MAX_ASH_KILL_RANGE.powf(2.0);
-        let ashPos = world.pos;
-        world.zombies.retain(|zombie| zombie.pos.distanceToSquared(ashPos) > maxDistanceSquared);
+    fn destroy_zombies(world: &mut World) {
+        let max_distance_squared = constants::MAX_ASH_KILL_RANGE.powf(2.0);
+        let ash_pos = world.pos;
+        world.zombies.retain(|zombie| zombie.pos.distance_to_squared(ash_pos) > max_distance_squared);
     }
 
-    fn destroyHumans(world: &mut World) {
-        let maxDistanceSquared = constants::MAX_ZOMBIE_KILL_RANGE.powf(2.0);
+    fn destroy_humans(world: &mut World) {
+        let max_distance_squared = constants::MAX_ZOMBIE_KILL_RANGE.powf(2.0);
         let zombies = &world.zombies;
         let humans = &mut world.humans;
-        humans.retain(|human| zombies.iter().any(|zombie| zombie.pos.distanceToSquared(human.pos) <= maxDistanceSquared));
+        humans.retain(|human| zombies.iter().any(|zombie| zombie.pos.distance_to_squared(human.pos) <= max_distance_squared));
     }
 }
 
@@ -276,13 +278,13 @@ mod agent {
 
     pub fn choose(world: &World) -> Action {
         Action {
-            target: chooseTarget(world),
+            target: choose_target(world),
         }
     }
 
-    fn chooseTarget(world: &World) -> V2 {
-        let closestZombie = collections::min_by_fkey(&world.zombies, |zombie| zombie.next.distanceToSquared(world.pos));
-        match closestZombie {
+    fn choose_target(world: &World) -> V2 {
+        let closest_zombie = collections::min_by_fkey(&world.zombies, |zombie| zombie.next.distance_to_squared(world.pos));
+        match closest_zombie {
             Some(zombie) => zombie.next,
             None => V2::zero(),
         }
