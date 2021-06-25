@@ -14,6 +14,7 @@ mod collections {
         result
     }
 }
+
 mod geometry {
     #[derive(Clone, Copy)]
     pub struct V2 {
@@ -104,8 +105,9 @@ mod model {
 
     pub mod constants {
         pub const MAX_ASH_STEP: f32 = 1000.0;
-        pub const MAX_ASH_RANGE: f32 = 2000.0;
+        pub const MAX_ASH_KILL_RANGE: f32 = 2000.0;
         pub const MAX_ZOMBIE_STEP: f32 = 400.0;
+        pub const MAX_ZOMBIE_KILL_RANGE: f32 = 0.5;
     }
 
     #[derive(Clone)]
@@ -255,9 +257,16 @@ mod simulator {
     }
 
     fn destroyZombies(world: &mut World) {
+        let maxDistanceSquared = constants::MAX_ASH_KILL_RANGE.powf(2.0);
+        let ashPos = world.pos;
+        world.zombies.retain(|zombie| zombie.pos.distanceToSquared(ashPos) > maxDistanceSquared);
     }
 
     fn destroyHumans(world: &mut World) {
+        let maxDistanceSquared = constants::MAX_ZOMBIE_KILL_RANGE.powf(2.0);
+        let zombies = &world.zombies;
+        let humans = &mut world.humans;
+        humans.retain(|human| zombies.iter().any(|zombie| zombie.pos.distanceToSquared(human.pos) <= maxDistanceSquared));
     }
 }
 
