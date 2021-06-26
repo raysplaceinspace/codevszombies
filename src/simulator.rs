@@ -1,4 +1,3 @@
-use super::collections;
 pub use super::model::*;
 
 pub fn next(world: &mut World, action: &Action) {
@@ -16,15 +15,21 @@ fn move_zombies(world: &mut World) {
 }
 
 fn update_zombie_targets(world: &mut World) {
-    for zombie in world.zombies.iter_mut() {
-        // TODO: Ash is a human too
-        let closest_human = collections::min_by_fkey(&world.humans, |human| human.pos.distance_to_squared(zombie.pos));
-        match closest_human {
-            Some(human) => {
-                zombie.next = zombie.pos.towards(human.pos, constants::MAX_ZOMBIE_STEP);
-            },
-            None => (),
+    let humans = &world.humans;
+    let zombies = &mut world.zombies;
+    for zombie in zombies.iter_mut() {
+        let mut target = world.pos;
+        let mut target_distance = target.distance_to(zombie.pos);
+
+        for human in humans.iter() {
+            let distance = zombie.pos.distance_to(human.pos);
+            if distance < target_distance {
+                target_distance = distance;
+                target = zombie.pos;
+            }
         }
+
+        zombie.next = target;
     }
 }
 
