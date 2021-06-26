@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 mod collections;
+mod evaluation;
 mod geometry;
 mod model;
 mod parser;

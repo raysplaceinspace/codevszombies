@@ -1,18 +1,12 @@
 use super::collections;
 pub use super::model::*;
 
-pub struct SimulationResult {
-    world: World,
-}
-
-pub fn next(initial: &World, action: &Action) -> SimulationResult {
-    let mut world = initial.clone();
-    move_zombies(&mut world);
-    move_ash(&mut world, &action);
-    destroy_zombies(&mut world);
-    destroy_humans(&mut world);
-    update_zombie_targets(&mut world);
-    SimulationResult { world }
+pub fn next(world: &mut World, action: &Action) {
+    move_zombies(world);
+    move_ash(world, &action);
+    destroy_zombies(world);
+    destroy_humans(world);
+    update_zombie_targets(world);
 }
 
 fn move_zombies(world: &mut World) {
@@ -23,6 +17,7 @@ fn move_zombies(world: &mut World) {
 
 fn update_zombie_targets(world: &mut World) {
     for zombie in world.zombies.iter_mut() {
+        // TODO: Ash is a human too
         let closest_human = collections::min_by_fkey(&world.humans, |human| human.pos.distance_to_squared(zombie.pos));
         match closest_human {
             Some(human) => {
