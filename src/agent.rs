@@ -41,18 +41,10 @@ fn generate_strategy(id: i32, world: &World) -> Strategy {
 }
 
 fn rollout(strategy: &Strategy, initial: &World) -> f32 {
-    let mut log = String::new();
-    let fragment = format!("[{}]: ", strategy.id);
-    log.push_str(&fragment);
-
     let mut world = initial.clone();
     for _ in 0..MAX_ROLLOUT_TICKS {
         let action = calculate_next_action(strategy, &world);
         simulator::next(&mut world, &action);
-
-        let score = evaluation::evaluate(&world);
-        let fragment = format!("{} ", score);
-        log.push_str(&fragment);
 
         if simulator::is_terminal(&world) {
             break;
@@ -60,8 +52,6 @@ fn rollout(strategy: &Strategy, initial: &World) -> f32 {
     }
 
     let score = evaluation::evaluate(&world);
-    eprintln!("{} -> {}", log, score);
-
     score
 }
 

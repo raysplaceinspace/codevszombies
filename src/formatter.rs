@@ -19,5 +19,5 @@ pub fn format_strategy(strategy: &Strategy) -> String {
 }
 
 pub fn format_milestone(milestone: &Milestone) -> String {
-    format!("{}", milestone.zombie_id)
+    format!("z{}", milestone.zombie_id)
 }
