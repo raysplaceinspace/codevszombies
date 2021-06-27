@@ -68,6 +68,15 @@ impl V2 {
         V2::distance_squared(self, target)
     }
 
+    pub fn unit(self) -> V2 {
+        let length = self.length();
+        if length > 0.0 {
+            self.div(length)
+        } else {
+            self
+        }
+    }
+
     pub fn towards(self, target: V2, max_step: f32) -> V2 {
         let diff = V2::diff(target, self);
         let distance = diff.length();

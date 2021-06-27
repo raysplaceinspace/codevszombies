@@ -2,7 +2,7 @@ use std::fmt::Write;
 use super::model::*;
 
 pub fn format_action(action: &Action) -> String {
-    format!("{} {}", action.target.x, action.target.y)
+    format!("{:.0} {:.0}", action.target.x, action.target.y)
 }
 
 pub fn format_strategy(strategy: &Strategy) -> String {
