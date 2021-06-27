@@ -5,7 +5,7 @@ macro_rules! parse_input {
     ($x:expr, $t:ident) => ($x.trim().parse::<$t>().unwrap())
 }
 
-pub fn read_world() -> World {
+pub fn read_world(tick: i32) -> World {
     let input_line = read_line();
     let inputs = split_line(&input_line);
     let pos = parse_v2(inputs[0], inputs[1]);
@@ -28,6 +28,7 @@ pub fn read_world() -> World {
     }
 
     World {
+        tick,
         pos,
         humans,
         zombies,

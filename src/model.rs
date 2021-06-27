@@ -22,6 +22,7 @@ pub struct Zombie {
 
 #[derive(Clone)]
 pub struct World {
+    pub tick: i32,
     pub pos: V2,
     pub humans: Vec<Human>,
     pub zombies: Vec<Zombie>,
@@ -47,4 +48,10 @@ impl Strategy {
     pub fn new(id: i32) -> Strategy {
         Strategy { id, milestones: Vec::new() }
     }
+}
+
+pub enum Event {
+    ZombieKilled { tick: i32, zombie_id: i32, score: f32 },
+    HumanKilled { tick: i32, human_id: i32 },
+    Ending { tick: i32, won: bool }
 }
