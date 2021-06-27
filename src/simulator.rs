@@ -14,7 +14,7 @@ pub fn next(world: &mut World, action: &Action) -> Vec<Event> {
 }
 
 fn move_zombies(world: &mut World) {
-    for zombie in world.zombies.iter_mut() {
+    for zombie in world.zombies.values_mut() {
         zombie.pos = zombie.next;
     }
 }
@@ -22,11 +22,11 @@ fn move_zombies(world: &mut World) {
 fn update_zombie_targets(world: &mut World) {
     let humans = &world.humans;
     let zombies = &mut world.zombies;
-    for zombie in zombies.iter_mut() {
+    for zombie in zombies.values_mut() {
         let mut target = world.pos;
         let mut target_distance = zombie.pos.distance_to(target);
 
-        for human in humans.iter() {
+        for human in humans.values() {
             let distance = zombie.pos.distance_to(human.pos);
             if distance < target_distance {
                 target_distance = distance;
@@ -45,7 +45,7 @@ fn move_ash(world: &mut World, action: &Action) {
 fn destroy_zombies(world: &mut World, events: &mut Vec<Event>) {
     let max_distance_squared = constants::MAX_ASH_KILL_RANGE.powf(2.0);
     let mut zombie_ids_to_delete = HashSet::<i32>::new();
-    for zombie in world.zombies.iter() {
+    for zombie in world.zombies.values() {
         if zombie.pos.distance_to_squared(world.pos) <= max_distance_squared {
             zombie_ids_to_delete.insert(zombie.id);
 
@@ -57,7 +57,9 @@ fn destroy_zombies(world: &mut World, events: &mut Vec<Event>) {
         }
     }
 
-    world.zombies.retain(|zombie| !zombie_ids_to_delete.contains(&zombie.id));
+    for zombie_id in zombie_ids_to_delete.iter() {
+        world.zombies.remove(zombie_id);
+    }
 }
 
 fn calculate_zombie_kill_score(num_humans: i32, num_zombie_kills_already: i32) -> f32 {
@@ -70,15 +72,17 @@ fn destroy_humans(world: &mut World, events: &mut Vec<Event>) {
 
     let max_distance_squared = constants::MAX_ZOMBIE_KILL_RANGE.powf(2.0);
     let mut human_ids_to_delete = HashSet::<i32>::new();
-    for human in world.humans.iter() {
-        let close_zombie = world.zombies.iter().any(|zombie| zombie.pos.distance_to_squared(human.pos) <= max_distance_squared);
+    for human in world.humans.values() {
+        let close_zombie = world.zombies.values().any(|zombie| zombie.pos.distance_to_squared(human.pos) <= max_distance_squared);
         if close_zombie {
             human_ids_to_delete.insert(human.id);
             events.push(Event::HumanKilled { tick: world.tick, human_id: human.id });
         }
     }
 
-    world.humans.retain(|human| !human_ids_to_delete.contains(&human.id));
+    for human_id in human_ids_to_delete.iter() {
+        world.humans.remove(human_id);
+    }
 
     if world.humans.len() == 0 {
         events.push(Event::Ending { tick: world.tick, won: false })

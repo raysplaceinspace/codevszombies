@@ -51,7 +51,7 @@ fn generate_strategy(id: i32, world: &World) -> Strategy {
     let mut strategy = Strategy::new(id);
     let mut rng = rand::thread_rng();
 
-    let mut remaining_zombie_ids = world.zombies.iter().map(|zombie| zombie.id).collect::<Vec<i32>>();
+    let mut remaining_zombie_ids = world.zombies.values().map(|zombie| zombie.id).collect::<Vec<i32>>();
     while remaining_zombie_ids.len() > 0 {
         let zombie_id = remaining_zombie_ids.remove(rng.gen_range(0..remaining_zombie_ids.len()));
         strategy.milestones.push(Milestone::KillZombie { zombie_id });
@@ -109,8 +109,7 @@ fn milestone_to_action(milestone: &Milestone, world: &World) -> Option<Action> {
 }
 
 fn kill_zombie_to_action(zombie_id: i32, world: &World) -> Option<Action> {
-    // TODO: Find zombie in constant time
-    match world.zombies.iter().find(|zombie| zombie.id == zombie_id) {
+    match world.zombies.get(&zombie_id) {
         Some(zombie) => Some(Action { target: zombie.next }),
         None => None,
     }

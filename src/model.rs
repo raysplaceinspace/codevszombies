@@ -1,10 +1,11 @@
 pub use super::geometry::*;
+use std::collections::HashMap;
 
 pub mod constants {
     pub const MAX_ASH_STEP: f32 = 1000.0;
     pub const MAX_ASH_KILL_RANGE: f32 = 2000.0;
     pub const MAX_ZOMBIE_STEP: f32 = 400.0;
-    pub const MAX_ZOMBIE_KILL_RANGE: f32 = 0.5;
+    pub const MAX_ZOMBIE_KILL_RANGE: f32 = 0.0001;
 }
 
 #[derive(Clone)]
@@ -24,8 +25,8 @@ pub struct Zombie {
 pub struct World {
     pub tick: i32,
     pub pos: V2,
-    pub humans: Vec<Human>,
-    pub zombies: Vec<Zombie>,
+    pub humans: HashMap<i32, Human>,
+    pub zombies: HashMap<i32, Zombie>,
 }
 
 #[derive(Clone)]

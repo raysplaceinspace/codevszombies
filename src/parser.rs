@@ -1,4 +1,5 @@
 use std::io;
+use std::collections::HashMap;
 use super::model::*;
 
 macro_rules! parse_input {
@@ -12,19 +13,21 @@ pub fn read_world(tick: i32) -> World {
 
     let input_line = read_line();
     let human_count = parse_input!(input_line, i32);
-    let mut humans = Vec::<Human>::new();
+    let mut humans = HashMap::<i32, Human>::new();
     for _ in 0..human_count as usize {
         let input_line = read_line();
-        humans.push(parse_human(&input_line));
+        let human = parse_human(&input_line);
+        humans.insert(human.id, human);
     }
 
     let mut input_line = String::new();
     io::stdin().read_line(&mut input_line).unwrap();
     let zombie_count = parse_input!(input_line, i32);
-    let mut zombies = Vec::<Zombie>::new();
+    let mut zombies = HashMap::<i32, Zombie>::new();
     for _ in 0..zombie_count as usize {
         let input_line = read_line();
-        zombies.push(parse_zombie(&input_line));
+        let zombie = parse_zombie(&input_line);
+        zombies.insert(zombie.id, zombie);
     }
 
     World {
