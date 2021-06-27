@@ -51,7 +51,7 @@ fn generate_strategy(id: i32, world: &World) -> Strategy {
     let mut strategy = Strategy::new(id);
     let mut rng = rand::thread_rng();
 
-    if rng.gen::<f32>() < 0.33 {
+    if rng.gen::<f32>() < 0.5 {
         let target = V2 {
             x: rng.gen_range(0..constants::MAP_WIDTH) as f32,
             y: rng.gen_range(0..constants::MAP_HEIGHT) as f32,
