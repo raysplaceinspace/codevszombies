@@ -17,15 +17,12 @@ struct Rollout {
     score: f32,
 }
 
-pub fn choose(world: &World) -> Action {
+pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
     let mut strategy_id = 0;
-    let mut best_strategy = Strategy::new(strategy_id);
-    let mut best_strategy_result = Rollout {
-        strategy_id,
-        events: Vec::new(),
-        final_tick: 0,
-        score: f32::NEG_INFINITY
-    };
+    let mut best_strategy = previous_strategy.clone();
+    best_strategy.id = strategy_id;
+
+    let mut best_strategy_result = rollout(&best_strategy, world);
 
     let start = Instant::now();
     while start.elapsed().as_millis() < MAX_STRATEGY_GENERATION_MILLISECONDS {
@@ -43,8 +40,8 @@ pub fn choose(world: &World) -> Action {
     for event in best_strategy_result.events.iter() {
         eprintln!(" {}", formatter::format_event(event));
     }
-
-    strategy_to_action(&best_strategy, world)
+    
+    best_strategy
 }
 
 fn generate_strategy(id: i32, world: &World) -> Strategy {
@@ -96,7 +93,7 @@ fn rollout(strategy: &Strategy, initial: &World) -> Rollout {
     }
 }
 
-fn strategy_to_action(strategy: &Strategy, world: &World) -> Action {
+pub fn strategy_to_action(strategy: &Strategy, world: &World) -> Action {
     for milestone in strategy.milestones.iter() {
         match milestone_to_action(milestone, world) {
             Some(action) => {
