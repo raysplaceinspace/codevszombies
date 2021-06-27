@@ -62,8 +62,8 @@ fn destroy_zombies(world: &mut World, events: &mut Vec<Event>) {
     }
 }
 
-fn calculate_zombie_kill_score(num_humans: i32, num_zombie_kills_already: i32) -> f32 {
-    10.0 * (num_humans as f32).powf(2.0) * (1.0 + num_zombie_kills_already as f32) // TODO: Fibonacci sequence multiplier
+fn calculate_zombie_kill_score(num_humans: i32, num_zombie_kills: i32) -> f32 {
+    10.0 * (num_humans as f32).powf(2.0) * (num_zombie_kills as f32) // TODO: Fibonacci sequence multiplier
 }
 
 fn destroy_humans(world: &mut World, events: &mut Vec<Event>) {
