@@ -1,3 +1,4 @@
+use std::fmt::Write;
 use super::model::*;
 
 pub fn format_action(action: &Action) -> String {
@@ -6,18 +7,14 @@ pub fn format_action(action: &Action) -> String {
 
 pub fn format_strategy(strategy: &Strategy) -> String {
     let mut result = String::new();
-    let id_str = format!("[{}]: ", strategy.id);
-    result.push_str(&id_str);
+
+    write!(result, "[{}]: ", strategy.id).unwrap();
 
     for milestone in strategy.milestones.iter() {
-        let milestone_str = format_milestone(&milestone);
-        result.push_str(&milestone_str);
-        result.push(' ');
+        match milestone {
+            Milestone::KillZombie { zombie_id } => { write!(result, "z{} ", zombie_id).unwrap(); },
+        }
     }
 
     result
-}
-
-pub fn format_milestone(milestone: &Milestone) -> String {
-    format!("z{}", milestone.zombie_id)
 }

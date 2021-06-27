@@ -34,8 +34,8 @@ pub struct Action {
 }
 
 #[derive(Clone)]
-pub struct Milestone {
-    pub zombie_id: i32,
+pub enum Milestone {
+    KillZombie { zombie_id: i32 },
 }
 
 #[derive(Clone)]

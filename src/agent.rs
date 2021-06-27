@@ -29,7 +29,7 @@ pub fn choose(world: &World) -> Action {
 
     eprintln!("Chosen strategy (after {} generations): {} -> {}", strategy_id, formatter::format_strategy(&best_strategy), best_strategy_score);
 
-    calculate_next_action(&best_strategy, world)
+    strategy_to_action(&best_strategy, world)
 }
 
 fn generate_strategy(id: i32, world: &World) -> Strategy {
@@ -39,7 +39,7 @@ fn generate_strategy(id: i32, world: &World) -> Strategy {
     let mut remaining_zombie_ids = world.zombies.iter().map(|zombie| zombie.id).collect::<Vec<i32>>();
     while remaining_zombie_ids.len() > 0 {
         let zombie_id = remaining_zombie_ids.remove(rng.gen_range(0..remaining_zombie_ids.len()));
-        strategy.milestones.push(Milestone { zombie_id });
+        strategy.milestones.push(Milestone::KillZombie { zombie_id });
     }
 
     strategy
@@ -49,7 +49,7 @@ fn rollout(strategy: &Strategy, initial: &World) -> f32 {
     let mut world = initial.clone();
     let mut all_events = Vec::<Event>::new();
     for _ in 0..MAX_ROLLOUT_TICKS {
-        let action = calculate_next_action(strategy, &world);
+        let action = strategy_to_action(strategy, &world);
         let tick_events = simulator::next(&mut world, &action);
 
         let is_finished = tick_events.iter().any(
@@ -67,18 +67,30 @@ fn rollout(strategy: &Strategy, initial: &World) -> f32 {
     score
 }
 
-fn calculate_next_action(strategy: &Strategy, world: &World) -> Action {
-    let mut target = world.pos;
+fn strategy_to_action(strategy: &Strategy, world: &World) -> Action {
     for milestone in strategy.milestones.iter() {
-        // TODO: Find zombie in constant time
-        match world.zombies.iter().find(|zombie| zombie.id == milestone.zombie_id) {
-            Some(zombie) => {
-                target = zombie.next;
-                break;
+        match milestone_to_action(milestone, world) {
+            Some(action) => {
+                return action;
             },
             None => (),
         }
     }
 
-    Action { target }
+    // Fallback to non-action
+    Action { target: world.pos }
+}
+
+fn milestone_to_action(milestone: &Milestone, world: &World) -> Option<Action> {
+    match milestone {
+        Milestone::KillZombie { zombie_id } => kill_zombie_to_action(*zombie_id, world),
+    }
+}
+
+fn kill_zombie_to_action(zombie_id: i32, world: &World) -> Option<Action> {
+    // TODO: Find zombie in constant time
+    match world.zombies.iter().find(|zombie| zombie.id == zombie_id) {
+        Some(zombie) => Some(Action { target: zombie.next }),
+        None => None,
+    }
 }
