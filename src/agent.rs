@@ -1,5 +1,6 @@
 pub use super::model::*;
 
+use std::time::Instant;
 use rand;
 use rand::Rng;
 use super::evaluation;
@@ -7,13 +8,17 @@ use super::simulator;
 use super::formatter;
 
 const MAX_ROLLOUT_TICKS: i32 = 50;
-const MAX_STRATEGY_GENERATIONS: i32 = 50;
+const MAX_STRATEGY_GENERATION_MILLISECONDS: u128 = 80;
 
 pub fn choose(world: &World) -> Action {
-    let mut best_strategy = Strategy::new(-1);
+    let mut strategy_id = 0;
+    let mut best_strategy = Strategy::new(strategy_id);
     let mut best_strategy_score = f32::NEG_INFINITY;
 
-    for strategy_id in 0..MAX_STRATEGY_GENERATIONS {
+    let start = Instant::now();
+    while start.elapsed().as_millis() < MAX_STRATEGY_GENERATION_MILLISECONDS {
+        strategy_id += 1;
+
         let strategy = generate_strategy(strategy_id, world);
         let score = rollout(&strategy, world);
         if score > best_strategy_score {
@@ -22,7 +27,7 @@ pub fn choose(world: &World) -> Action {
         }
     }
 
-    eprintln!("{} -> {}", formatter::format_strategy(&best_strategy), best_strategy_score);
+    eprintln!("Chosen strategy (after {} generations): {} -> {}", strategy_id, formatter::format_strategy(&best_strategy), best_strategy_score);
 
     calculate_next_action(&best_strategy, world)
 }
