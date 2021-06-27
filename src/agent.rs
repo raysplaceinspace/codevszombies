@@ -7,7 +7,7 @@ use super::simulator;
 use super::formatter;
 
 const MAX_ROLLOUT_TICKS: i32 = 50;
-const MAX_STRATEGY_GENERATIONS: i32 = 5;
+const MAX_STRATEGY_GENERATIONS: i32 = 50;
 
 pub fn choose(world: &World) -> Action {
     let mut best_strategy = Strategy::new(-1);
