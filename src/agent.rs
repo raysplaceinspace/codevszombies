@@ -10,24 +10,39 @@ use super::formatter;
 const MAX_ROLLOUT_TICKS: i32 = 50;
 const MAX_STRATEGY_GENERATION_MILLISECONDS: u128 = 80;
 
+struct Rollout {
+    strategy_id: i32,
+    events: Vec<Event>,
+    final_tick: i32,
+    score: f32,
+}
+
 pub fn choose(world: &World) -> Action {
     let mut strategy_id = 0;
     let mut best_strategy = Strategy::new(strategy_id);
-    let mut best_strategy_score = f32::NEG_INFINITY;
+    let mut best_strategy_result = Rollout {
+        strategy_id,
+        events: Vec::new(),
+        final_tick: 0,
+        score: f32::NEG_INFINITY
+    };
 
     let start = Instant::now();
     while start.elapsed().as_millis() < MAX_STRATEGY_GENERATION_MILLISECONDS {
         strategy_id += 1;
 
         let strategy = generate_strategy(strategy_id, world);
-        let score = rollout(&strategy, world);
-        if score > best_strategy_score {
-            best_strategy_score = score;
+        let rollout_result = rollout(&strategy, world);
+        if rollout_result.score > best_strategy_result.score {
+            best_strategy_result = rollout_result;
             best_strategy = strategy;
         }
     }
 
-    eprintln!("Chosen strategy (after {} generations): {} -> {}", strategy_id, formatter::format_strategy(&best_strategy), best_strategy_score);
+    eprintln!("Chosen strategy (after {} generations): {} -> {}", strategy_id, formatter::format_strategy(&best_strategy), best_strategy_result.score);
+    for event in best_strategy_result.events.iter() {
+        eprintln!(" {}", formatter::format_event(event));
+    }
 
     strategy_to_action(&best_strategy, world)
 }
@@ -45,9 +60,9 @@ fn generate_strategy(id: i32, world: &World) -> Strategy {
     strategy
 }
 
-fn rollout(strategy: &Strategy, initial: &World) -> f32 {
+fn rollout(strategy: &Strategy, initial: &World) -> Rollout {
     let mut world = initial.clone();
-    let mut all_events = Vec::<Event>::new();
+    let mut events = Vec::<Event>::new();
     for _ in 0..MAX_ROLLOUT_TICKS {
         let action = strategy_to_action(strategy, &world);
         let tick_events = simulator::next(&mut world, &action);
@@ -58,13 +73,19 @@ fn rollout(strategy: &Strategy, initial: &World) -> f32 {
                 _ => false
             }
         );
-        all_events.extend(tick_events.into_iter());
+        events.extend(tick_events.into_iter());
 
         if is_finished { break; }
     }
 
-    let score = evaluation::evaluate(&world, &all_events);
-    score
+    let score = evaluation::evaluate(&world, &events);
+
+    Rollout {
+        strategy_id: strategy.id,
+        events,
+        final_tick: world.tick,
+        score,
+    }
 }
 
 fn strategy_to_action(strategy: &Strategy, world: &World) -> Action {

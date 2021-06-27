@@ -18,3 +18,12 @@ pub fn format_strategy(strategy: &Strategy) -> String {
 
     result
 }
+
+pub fn format_event(event: &Event) -> String {
+    match event {
+        Event::ZombieKilled { tick, zombie_id, score, .. } => format!("{}> zombie {} killed, +{}", tick, zombie_id, score),
+        Event::HumanKilled { tick, human_id, .. } => format!("{}> human {} killed", tick, human_id),
+        Event::Ending { tick, won, .. } if *won => format!("{}> won", tick),
+        Event::Ending { tick, .. } => format!("{}> lost", tick),
+    }
+}
