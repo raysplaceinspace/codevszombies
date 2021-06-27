@@ -1,6 +1,22 @@
 pub use super::model::*;
 use std::collections::HashSet;
 
+struct FibonacciSequence {
+    previous: (i32, i32),
+}
+
+impl FibonacciSequence {
+    fn new() -> FibonacciSequence {
+        FibonacciSequence { previous: (0, 1) }
+    }
+    fn next(&mut self) -> i32 {
+        let (a, b) = self.previous;
+        let result = a + b;
+        self.previous = (b, result);
+        result
+    }
+}
+
 pub fn next(world: &mut World, action: &Action) -> Vec<Event> {
     world.tick += 1;
 
@@ -45,14 +61,19 @@ fn move_ash(world: &mut World, action: &Action) {
 fn destroy_zombies(world: &mut World, events: &mut Vec<Event>) {
     let max_distance_squared = constants::MAX_ASH_KILL_RANGE.powf(2.0);
     let mut zombie_ids_to_delete = HashSet::<i32>::new();
+
+    let base_kill_score = calculate_zombie_kill_score(world.humans.len() as i32);
+    let mut multiplier_sequence = FibonacciSequence::new();
+
     for zombie in world.zombies.values() {
         if zombie.pos.distance_to_squared(world.pos) <= max_distance_squared {
             zombie_ids_to_delete.insert(zombie.id);
 
+            let multiplier = multiplier_sequence.next() as f32;
             events.push(Event::ZombieKilled {
                 tick: world.tick,
                 zombie_id: zombie.id,
-                score: calculate_zombie_kill_score(world.humans.len() as i32, zombie_ids_to_delete.len() as i32),
+                score: multiplier * base_kill_score,
             });
         }
     }
@@ -62,8 +83,8 @@ fn destroy_zombies(world: &mut World, events: &mut Vec<Event>) {
     }
 }
 
-fn calculate_zombie_kill_score(num_humans: i32, num_zombie_kills: i32) -> f32 {
-    10.0 * (num_humans as f32).powf(2.0) * (num_zombie_kills as f32) // TODO: Fibonacci sequence multiplier
+fn calculate_zombie_kill_score(num_humans: i32) -> f32 {
+    10.0 * (num_humans as f32).powf(2.0)
 }
 
 fn destroy_humans(world: &mut World, events: &mut Vec<Event>) {
