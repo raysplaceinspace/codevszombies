@@ -23,13 +23,13 @@ fn update_zombie_targets(world: &mut World) {
     let zombies = &mut world.zombies;
     for zombie in zombies.iter_mut() {
         let mut target = world.pos;
-        let mut target_distance = target.distance_to(zombie.pos);
+        let mut target_distance = zombie.pos.distance_to(target);
 
         for human in humans.iter() {
             let distance = zombie.pos.distance_to(human.pos);
             if distance < target_distance {
                 target_distance = distance;
-                target = zombie.pos;
+                target = human.pos;
             }
         }
 
