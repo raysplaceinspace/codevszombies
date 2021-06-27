@@ -2,6 +2,8 @@ pub use super::geometry::*;
 use std::collections::HashMap;
 
 pub mod constants {
+    pub const MAP_WIDTH: i32 = 16000;
+    pub const MAP_HEIGHT: i32 = 9000;
     pub const MAX_ASH_STEP: f32 = 1000.0;
     pub const MAX_ASH_KILL_RANGE: f32 = 2000.0;
     pub const MAX_ZOMBIE_STEP: f32 = 400.0;
@@ -37,6 +39,7 @@ pub struct Action {
 #[derive(Clone)]
 pub enum Milestone {
     KillZombie { zombie_id: i32 },
+    MoveTo { target: V2 },
 }
 
 #[derive(Clone)]

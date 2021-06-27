@@ -51,6 +51,14 @@ fn generate_strategy(id: i32, world: &World) -> Strategy {
     let mut strategy = Strategy::new(id);
     let mut rng = rand::thread_rng();
 
+    if rng.gen::<f32>() < 0.33 {
+        let target = V2 {
+            x: rng.gen_range(0..constants::MAP_WIDTH) as f32,
+            y: rng.gen_range(0..constants::MAP_HEIGHT) as f32,
+        };
+        strategy.milestones.push(Milestone::MoveTo { target });
+    }
+
     let mut remaining_zombie_ids = world.zombies.values().map(|zombie| zombie.id).collect::<Vec<i32>>();
     while remaining_zombie_ids.len() > 0 {
         let zombie_id = remaining_zombie_ids.remove(rng.gen_range(0..remaining_zombie_ids.len()));
@@ -105,6 +113,7 @@ fn strategy_to_action(strategy: &Strategy, world: &World) -> Action {
 fn milestone_to_action(milestone: &Milestone, world: &World) -> Option<Action> {
     match milestone {
         Milestone::KillZombie { zombie_id } => kill_zombie_to_action(*zombie_id, world),
+        Milestone::MoveTo { target } => move_to_action(*target, world),
     }
 }
 
@@ -112,5 +121,15 @@ fn kill_zombie_to_action(zombie_id: i32, world: &World) -> Option<Action> {
     match world.zombies.get(&zombie_id) {
         Some(zombie) => Some(Action { target: zombie.next }),
         None => None,
+    }
+}
+
+fn move_to_action(target: V2, world: &World) -> Option<Action> {
+    const PRECISION: f32 = 1.0;
+    let distance = world.pos.distance_to(target);
+    if distance < PRECISION {
+        None
+    } else {
+        Some(Action { target })
     }
 }
