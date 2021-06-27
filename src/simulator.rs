@@ -1,5 +1,9 @@
 pub use super::model::*;
 
+pub fn is_terminal(world: &World) -> bool {
+    world.zombies.len() == 0 || world.humans.len() == 0
+}
+
 pub fn next(world: &mut World, action: &Action) {
     move_zombies(world);
     move_ash(world, &action);
@@ -29,7 +33,7 @@ fn update_zombie_targets(world: &mut World) {
             }
         }
 
-        zombie.next = target;
+        zombie.next = zombie.pos.towards(target, constants::MAX_ZOMBIE_STEP);
     }
 }
 
@@ -44,8 +48,10 @@ fn destroy_zombies(world: &mut World) {
 }
 
 fn destroy_humans(world: &mut World) {
+    if world.zombies.len() == 0 { return; }
+
     let max_distance_squared = constants::MAX_ZOMBIE_KILL_RANGE.powf(2.0);
     let zombies = &world.zombies;
     let humans = &mut world.humans;
-    humans.retain(|human| zombies.iter().any(|zombie| zombie.pos.distance_to_squared(human.pos) <= max_distance_squared));
+    humans.retain(|human| zombies.iter().all(|zombie| zombie.pos.distance_to_squared(human.pos) > max_distance_squared));
 }

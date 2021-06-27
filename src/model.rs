@@ -31,3 +31,20 @@ pub struct World {
 pub struct Action {
     pub target: V2,
 }
+
+#[derive(Clone)]
+pub struct Milestone {
+    pub zombie_id: i32,
+}
+
+#[derive(Clone)]
+pub struct Strategy {
+    pub id: i32,
+    pub milestones: Vec<Milestone>,
+}
+
+impl Strategy {
+    pub fn new(id: i32) -> Strategy {
+        Strategy { id, milestones: Vec::new() }
+    }
+}
