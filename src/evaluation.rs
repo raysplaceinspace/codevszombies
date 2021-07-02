@@ -33,9 +33,9 @@ impl ScoreAccumulator {
     pub fn upper_bound(&self, world: &World) -> f32 {
         let mut maximum_gain: f32 = 0.0;
         let mut multiplier = simulator::FibonacciSequence::new();
-        let num_humans = world.humans.len() as i32;
+        let score_per_zombie = simulator::calculate_zombie_kill_score(world.humans.len() as i32);
         for _ in 0..world.zombies.len() {
-            maximum_gain += (multiplier.next() as f32) * simulator::calculate_zombie_kill_score(num_humans);
+            maximum_gain += (multiplier.next() as f32) * score_per_zombie
         }
         self.total_score + maximum_gain
     }
