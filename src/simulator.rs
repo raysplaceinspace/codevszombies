@@ -1,15 +1,15 @@
 pub use super::model::*;
 use std::collections::HashSet;
 
-struct FibonacciSequence {
+pub struct FibonacciSequence {
     previous: (i32, i32),
 }
 
 impl FibonacciSequence {
-    fn new() -> FibonacciSequence {
+    pub fn new() -> FibonacciSequence {
         FibonacciSequence { previous: (0, 1) }
     }
-    fn next(&mut self) -> i32 {
+    pub fn next(&mut self) -> i32 {
         let (a, b) = self.previous;
         let result = a + b;
         self.previous = (b, result);
@@ -83,7 +83,7 @@ fn destroy_zombies(world: &mut World, events: &mut Vec<Event>) {
     }
 }
 
-fn calculate_zombie_kill_score(num_humans: i32) -> f32 {
+pub fn calculate_zombie_kill_score(num_humans: i32) -> f32 {
     10.0 * (num_humans as f32).powf(2.0)
 }
 

@@ -1,25 +1,42 @@
 pub use super::model::*;
+use super::simulator;
 
 const LOSS_POINTS: f32 = -10000.0;
 const POINTS_PER_TICK: f32 = -0.01;
 
-pub fn evaluate(_world: &World, events: &Vec<Event>) -> f32 {
-    let mut total_score: f32 = 0.0;
+pub struct ScoreAccumulator {
+    pub total_score: f32,
+}
 
-    for event in events.iter() {
-        match event {
-            Event::ZombieKilled { score, .. } => {
-                total_score += score;
-            },
-            Event::Ending { won, tick, .. } => {
-                total_score += POINTS_PER_TICK * (*tick as f32);
-                if !won {
-                    total_score += LOSS_POINTS;
-                }
-            },
-            _ => (),
+impl ScoreAccumulator {
+    pub fn new() -> ScoreAccumulator {
+        ScoreAccumulator { total_score: 0.0 }
+    }
+
+    pub fn accumulate(&mut self, events: &Vec<Event>) {
+        for event in events.iter() {
+            match event {
+                Event::ZombieKilled { score, .. } => {
+                    self.total_score += score;
+                },
+                Event::Ending { won, tick, .. } => {
+                    self.total_score += POINTS_PER_TICK * (*tick as f32);
+                    if !won {
+                        self.total_score += LOSS_POINTS;
+                    }
+                },
+                _ => (),
+            }
         }
     }
 
-    total_score
+    pub fn upper_bound(&self, world: &World) -> f32 {
+        let mut maximum_gain: f32 = 0.0;
+        let mut multiplier = simulator::FibonacciSequence::new();
+        let num_humans = world.humans.len() as i32;
+        for _ in 0..world.zombies.len() {
+            maximum_gain += (multiplier.next() as f32) * simulator::calculate_zombie_kill_score(num_humans);
+        }
+        self.total_score + maximum_gain
+    }
 }
