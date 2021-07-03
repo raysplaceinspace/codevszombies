@@ -82,7 +82,7 @@ fn jitter_move(strategy: &mut Strategy, rng: &mut rand::prelude::ThreadRng) -> b
 }
 
 fn replace_move(strategy: &mut Strategy, rng: &mut rand::prelude::ThreadRng) -> bool {
-    const KEEP_PROBABILITY: f32 = 0.9;
+    const KEEP_PROBABILITY: f32 = 0.95;
 
     // Drop random number of items
     strategy.milestones.retain(|_| rng.gen::<f32>() < KEEP_PROBABILITY);

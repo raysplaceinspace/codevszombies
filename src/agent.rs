@@ -9,10 +9,10 @@ use super::rollouts;
 const MAX_STRATEGY_GENERATION_MILLISECONDS: u128 = 90;
 
 const MUTATE_PROPORTION: f32 = 0.75;
-const MAX_MUTATIONS: i32 = 2;
+const MAX_MUTATIONS: i32 = 1;
 const MUTATION_REPEAT_PROBABILITY: f32 = 0.1;
 
-const MAX_MOVES_FROM_SCRATCH: i32 = 3;
+const MAX_MOVES_FROM_SCRATCH: i32 = 1;
 
 pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
     let mut rng = rand::thread_rng();
