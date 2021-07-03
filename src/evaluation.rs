@@ -1,5 +1,4 @@
 pub use super::model::*;
-use super::simulator;
 
 const WON_POINTS: f32 = 0.0;
 const POINTS_PER_ZOMBIE: f32 = -1000.0;
