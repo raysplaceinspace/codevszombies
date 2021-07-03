@@ -16,8 +16,6 @@ mod simulator;
 mod verifier;
 
 use rand;
-use rand::Rng;
-use rand::prelude::ThreadRng;
 
 use model::*;
 use evaluation::ScoreParams;
