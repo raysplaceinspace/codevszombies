@@ -12,7 +12,7 @@ const MUTATE_PROPORTION: f32 = 0.75;
 const MAX_MUTATIONS: i32 = 2;
 const MUTATION_REPEAT_PROBABILITY: f32 = 0.1;
 
-const MAX_MOVES_FROM_SCRATCH: i32 = 2;
+const MAX_MOVES_FROM_SCRATCH: i32 = 3;
 
 pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
     let mut rng = rand::thread_rng();
@@ -78,7 +78,7 @@ fn generate_strategy(id: i32, incumbent: &Strategy, world: &World, rng: &mut ran
 fn generate_strategy_from_scratch(id: i32, world: &World, rng: &mut rand::prelude::ThreadRng) -> Strategy {
     let mut strategy = Strategy::new(id);
 
-    let num_moves = rng.gen_range(0..MAX_MOVES_FROM_SCRATCH);
+    let num_moves = rng.gen_range(0..(MAX_MOVES_FROM_SCRATCH+1)); // MAX_MOVES_FROM_SCRATCH is inclusive
     for _ in 0..num_moves {
         let target = V2 {
             x: rng.gen_range(0..constants::MAP_WIDTH) as f32,
