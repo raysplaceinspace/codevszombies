@@ -74,7 +74,7 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
     eprintln!("Chosen generation {} after {} total generations", best_rollout.strategy.id, strategy_id);
     eprintln!("Chosen strategy: {}", &best_rollout.strategy);
 
-    eprintln!("Optimized score (after {} generations): {} -> {}", strategy_id, initial_scores[0], best_rollout.scores[0]);
+    eprintln!("Optimized score (after {} generations):", strategy_id);
     for i in 0..score_sheet.len() {
         eprintln!(" #[{}]: {} -> {} ({}) (h={}, z={})", pool[i].strategy.id, initial_scores[i], pool[i].score, pool[i].actual, pool[i].ending.num_humans, pool[i].ending.num_zombies);
     }
