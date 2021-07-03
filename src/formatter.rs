@@ -36,7 +36,7 @@ impl fmt::Display for Strategy {
 impl fmt::Display for Event {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self {
-            Event::ZombieKilled { tick, zombie_id, score, .. } => write!(f, "{}> zombie {} killed, +{}", tick, zombie_id, score),
+            Event::ZombieKilled { tick, zombie_id, score, multiplier, .. } => write!(f, "{}> zombie {} killed, +{} * {}", tick, zombie_id, score, multiplier),
             Event::HumanKilled { tick, human_id, .. } => write!(f, "{}> human {} killed", tick, human_id),
             Event::Won { tick, num_humans, .. } => write!(f, "{}> won - {} humans remain", tick, num_humans),
             Event::Lost { tick, num_zombies, .. } => write!(f, "{}> lost {} zombies remain", tick, num_zombies),

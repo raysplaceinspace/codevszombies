@@ -66,7 +66,7 @@ fn destroy_zombies(world: &mut World, events: &mut Vec<Event>) {
     let max_distance_squared = constants::MAX_ASH_KILL_RANGE.powf(2.0);
     let mut zombie_ids_to_delete = HashSet::<i32>::new();
 
-    let base_kill_score = calculate_zombie_kill_score(world.humans.len() as i32);
+    let score = calculate_zombie_kill_score(world.humans.len() as i32);
     let mut multiplier_sequence = FibonacciSequence::new();
 
     for zombie in world.zombies.values() {
@@ -77,7 +77,8 @@ fn destroy_zombies(world: &mut World, events: &mut Vec<Event>) {
             events.push(Event::ZombieKilled {
                 tick: world.tick,
                 zombie_id: zombie.id,
-                score: multiplier * base_kill_score,
+                score,
+                multiplier,
             });
         }
     }

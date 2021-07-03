@@ -14,22 +14,25 @@ const POINTS_PER_TICK: f32 = -0.01;
 const POINTS_PER_MILESTONE: f32 = -0.001;
 
 pub struct ScoreParams {
-    save_humans_multiplier: f32,
-    kill_zombies_multiplier: f32,
+    save_humans_weight: f32,
+    kill_zombies_score_weight: f32,
+    kill_zombies_multiplier_weight: f32,
 }
 
 impl ScoreParams {
     pub fn official() -> ScoreParams {
         ScoreParams {
-            save_humans_multiplier: 0.0,
-            kill_zombies_multiplier: 1.0,
+            save_humans_weight: 0.0,
+            kill_zombies_score_weight: 1.0,
+            kill_zombies_multiplier_weight: 1.0,
         }
     }
 
     pub fn gen(rng: &mut ThreadRng) -> ScoreParams {
         ScoreParams {
-            kill_zombies_multiplier: rng.gen::<f32>(),
-            save_humans_multiplier: rng.gen::<f32>(),
+            kill_zombies_score_weight: rng.gen::<f32>(),
+            kill_zombies_multiplier_weight: rng.gen::<f32>(),
+            save_humans_weight: rng.gen::<f32>(),
         }
     }
 
@@ -62,11 +65,11 @@ impl ScoreAccumulator<'_> {
     pub fn accumulate(&mut self, events: &Vec<Event>) {
         for event in events.iter() {
             match event {
-                Event::ZombieKilled { score, .. } => {
-                    self.total_score += self.params.kill_zombies_multiplier * score;
+                Event::ZombieKilled { score, multiplier, .. } => {
+                    self.total_score += self.params.kill_zombies_score_weight * score * multiplier.powf(self.params.kill_zombies_multiplier_weight);
                 },
                 Event::HumanKilled { .. } => {
-                    self.total_score += self.params.save_humans_multiplier * BONUS_POINTS_PER_HUMAN;
+                    self.total_score += self.params.save_humans_weight * BONUS_POINTS_PER_HUMAN;
                 },
                 Event::Won{ tick, .. } => {
                     self.total_score += POINTS_PER_TICK * (*tick as f32);
