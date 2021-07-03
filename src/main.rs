@@ -5,8 +5,11 @@ mod collections;
 mod evaluation;
 mod formatter;
 mod geometry;
+mod milestones;
 mod model;
+mod mutations;
 mod parser;
+mod rollouts;
 mod simulator;
 mod verifier;
 
@@ -25,7 +28,7 @@ fn main() {
     loop {
         let world = parser::read_world(tick);
         let strategy = agent::choose(&world, &previous_strategy);
-        let action = agent::strategy_to_action(&strategy, &world);
+        let action = rollouts::strategy_to_action(&strategy, &world);
         // Write an action using println!("message...");
         // To debug: eprintln!("Debug message...");
 

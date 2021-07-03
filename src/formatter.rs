@@ -19,7 +19,7 @@ impl fmt::Display for Milestone {
 
 impl fmt::Display for Strategy {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[{}] ", self.id);
+        write!(f, "[{}] ", self.id).unwrap();
 
         for milestone in self.milestones.iter() {
             match milestone {
