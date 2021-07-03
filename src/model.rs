@@ -31,6 +31,17 @@ pub struct World {
     pub zombies: HashMap<i32, Zombie>,
 }
 
+impl World {
+    pub fn new() -> World {
+        World {
+            tick: 0,
+            pos: V2::zero(),
+            humans: HashMap::new(),
+            zombies: HashMap::new(),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Action {
     pub target: V2,
