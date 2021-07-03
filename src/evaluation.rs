@@ -31,7 +31,7 @@ impl ScoreParams {
     pub fn gen(rng: &mut ThreadRng) -> ScoreParams {
         ScoreParams {
             kill_zombies_score_weight: rng.gen::<f32>(),
-            kill_zombies_multiplier_weight: rng.gen_range(0.8 .. 1.2),
+            kill_zombies_multiplier_weight: 1.0,
             save_humans_weight: rng.gen::<f32>(),
         }
     }
