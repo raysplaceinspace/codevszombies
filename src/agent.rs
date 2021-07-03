@@ -12,8 +12,7 @@ use super::formatter;
 const MAX_ROLLOUT_TICKS: i32 = 50;
 const MAX_STRATEGY_GENERATION_MILLISECONDS: u128 = 90;
 
-const INSERT_MOVE_PROPORTION: f32 = 0.1;
-const REPLACE_MOVE_PROPORTION: f32 = 0.25;
+const REPLACE_MOVE_PROPORTION: f32 = 0.5;
 const BUMP_MOVE_PROPORTION: f32 = 0.25;
 
 const ATTACK_ZOMBIE_PROPORTION: f32 = 0.05;
@@ -94,7 +93,6 @@ fn generate_strategy(id: i32, best_strategy: &Strategy, world: &World, rng: &mut
 
     if strategy.is_none() && rng.gen::<f32>() < BUMP_MOVE_PROPORTION { strategy = bump_move(id, best_strategy, rng); }
     if strategy.is_none() && rng.gen::<f32>() < REPLACE_MOVE_PROPORTION { strategy = replace_move(id, best_strategy, rng); }
-    if strategy.is_none() && rng.gen::<f32>() < INSERT_MOVE_PROPORTION { strategy = insert_move(id, best_strategy, rng); }
 
     if strategy.is_none() && rng.gen::<f32>() < DROP_PROPORTION { strategy = drop_element(id, best_strategy, rng); }
 
@@ -134,33 +132,25 @@ fn bump_move(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) 
     }
 }
 
-fn insert_move(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+fn replace_move(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+    const KEEP_PROBABILITY: f32 = 0.9;
+
+    let mut strategy = incumbent.clone(id);
+
+    // Drop random number of items
+    strategy.milestones.retain(|_| rng.gen::<f32>() < KEEP_PROBABILITY);
+
+    // Insert new move
     let target = V2 {
         x: rng.gen_range(0..constants::MAP_WIDTH) as f32,
         y: rng.gen_range(0..constants::MAP_HEIGHT) as f32,
     };
-    let insert_index = rng.gen_range(0 .. (incumbent.milestones.len() + 1)); // +1 because can add to end of list
-
-    let mut strategy = incumbent.clone(id);
+    let insert_index = rng.gen_range(0 .. (strategy.milestones.len() + 1)); // +1 because can add to end of list
     strategy.milestones.insert(insert_index, Milestone::MoveTo {
         target,
     });
+
     Some(strategy)
-}
-fn replace_move(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
-    match choose_move_index(incumbent, rng) {
-        Some(move_index) => {
-            let mut strategy = incumbent.clone(id);
-            strategy.milestones[move_index] = Milestone::MoveTo {
-                target: V2 {
-                    x: rng.gen_range(0..constants::MAP_WIDTH) as f32,
-                    y: rng.gen_range(0..constants::MAP_HEIGHT) as f32,
-                },
-            };
-            Some(strategy)
-        },
-        None => None,
-    }
 }
 fn drop_element(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
     if incumbent.milestones.len() == 0 { return None; }
