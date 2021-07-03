@@ -18,6 +18,8 @@ struct Rollout {
 }
 
 pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
+    let mut rng = rand::thread_rng();
+
     let mut strategy_id = 0;
     let mut best_strategy = previous_strategy.clone();
     best_strategy.id = strategy_id;
@@ -28,7 +30,7 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
     while start.elapsed().as_millis() < MAX_STRATEGY_GENERATION_MILLISECONDS {
         strategy_id += 1;
 
-        let strategy = generate_strategy(strategy_id, world);
+        let strategy = generate_strategy(strategy_id, world, &mut rng);
         let rollout_result = rollout(&strategy, world, best_strategy_result.score);
         if rollout_result.score > best_strategy_result.score {
             best_strategy_result = rollout_result;
@@ -44,9 +46,8 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
     best_strategy
 }
 
-fn generate_strategy(id: i32, world: &World) -> Strategy {
+fn generate_strategy(id: i32, world: &World, rng: &mut rand::prelude::ThreadRng) -> Strategy {
     let mut strategy = Strategy::new(id);
-    let mut rng = rand::thread_rng();
 
     if rng.gen::<f32>() < 0.5 {
         let target = V2 {
