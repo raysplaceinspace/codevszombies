@@ -11,8 +11,7 @@ use super::rollouts::{Rollout, WorldState};
 
 const MAX_STRATEGY_GENERATION_MILLISECONDS: u128 = 90;
 
-const NUM_POOL_ENTRIES: usize = 10;
-const MUTATE_PROPORTION: f32 = 0.5;
+const MUTATE_PROPORTION: f32 = 0.9;
 
 const MAX_MOVES_FROM_SCRATCH: i32 = 1;
 

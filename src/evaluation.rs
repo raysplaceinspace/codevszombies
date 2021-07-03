@@ -4,7 +4,7 @@ use rand;
 use rand::Rng;
 use rand::prelude::ThreadRng;
 
-const SCORE_SHEET_SIZE: i32 = 10;
+const SCORE_SHEET_SIZE: i32 = 5;
 
 const WON_POINTS: f32 = 0.0;
 const LOSS_POINTS: f32 = -10000.0;
