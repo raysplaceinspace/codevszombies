@@ -13,7 +13,8 @@ const MAX_STRATEGY_GENERATION_MILLISECONDS: u128 = 80;
 const GENERATE_MOVE_PROBABILITY: f32 = 0.5;
 const BUMP_PROPORTION: f32 = 0.25;
 const BUBBLE_PROPORTION: f32 = 0.1;
-const DISPLACE_PROPORTION: f32 = 0.3;
+const DISPLACE_PROPORTION: f32 = 0.2;
+const REVERSE_PROPORTION: f32 = 0.05;
 
 struct Rollout {
     strategy_id: i32,
@@ -81,7 +82,8 @@ fn generate_strategy(id: i32, best_strategy: &Strategy, world: &World, rng: &mut
 
     if strategy.is_none() && rng.gen::<f32>() < BUMP_PROPORTION { strategy = bump_strategy(id, best_strategy, rng); }
     if strategy.is_none() && rng.gen::<f32>() < BUBBLE_PROPORTION { strategy = bubble_strategy(id, best_strategy, rng); }
-    if strategy.is_none() && rng.gen::<f32>() < DISPLACE_PROPORTION { strategy = displace_strategy(id, best_strategy, rng); }
+    if strategy.is_none() && rng.gen::<f32>() < DISPLACE_PROPORTION { strategy = displace_section(id, best_strategy, rng); }
+    if strategy.is_none() && rng.gen::<f32>() < REVERSE_PROPORTION { strategy = reverse_section(id, best_strategy, rng); }
 
     if strategy.is_none() {
         strategy = Some(generate_strategy_from_scratch(id, world, rng));
@@ -154,7 +156,7 @@ fn bubble_strategy(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::Threa
     Some(strategy)
 }
 
-fn displace_strategy(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+fn displace_section(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
     const MAX_DISPLACE_LENGTH: usize = 8;
     const DISPLACE_LENGTH_POWER: f32 = 2.0;
 
@@ -168,6 +170,27 @@ fn displace_strategy(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::Thr
 
     let displace_to_index = rng.gen_range(0 .. (strategy.milestones.len() + 1)); // +1 because can displace to after the end as well
     strategy.milestones.splice(displace_to_index .. displace_to_index, displaced.into_iter());
+
+    Some(strategy)
+}
+
+fn reverse_section(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+    const MAX_REVERSE_LENGTH: usize = 8;
+    const REVERSE_LENGTH_POWER: f32 = 2.0;
+
+    if incumbent.milestones.len() < 2 { return None }
+
+    let reverse_from_index = rng.gen_range(0 .. incumbent.milestones.len());
+    let reverse_length = cmp::min(1 + (rng.gen::<f32>().powf(REVERSE_LENGTH_POWER) * MAX_REVERSE_LENGTH as f32).floor() as usize, incumbent.milestones.len() - reverse_from_index);
+    let reverse_to_index = reverse_from_index + reverse_length;
+
+    let mut strategy = Strategy::new(id);
+    strategy.milestones.extend(
+        incumbent.milestones[0 .. reverse_from_index].iter()
+        .chain(incumbent.milestones[reverse_from_index .. reverse_to_index].iter().rev())
+        .chain(incumbent.milestones[reverse_to_index .. ].iter())
+        .map(|milestone| milestone.clone())
+    );
 
     Some(strategy)
 }
