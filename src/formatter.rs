@@ -43,3 +43,21 @@ impl fmt::Display for Event {
         }
     }
 }
+
+impl fmt::Display for Zombie {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "z{}", self.id)
+    }
+}
+
+impl fmt::Display for Human {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "h{}", self.id)
+    }
+}
+
+impl fmt::Display for Ash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "a0")
+    }
+}

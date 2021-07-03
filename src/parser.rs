@@ -32,7 +32,7 @@ pub fn read_world(tick: i32) -> World {
 
     World {
         tick,
-        pos,
+        ash: Ash { pos },
         humans,
         zombies,
     }

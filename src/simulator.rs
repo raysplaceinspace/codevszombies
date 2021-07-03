@@ -43,7 +43,7 @@ fn update_zombie_targets(world: &mut World) {
     let humans = &world.humans;
     let zombies = &mut world.zombies;
     for zombie in zombies.values_mut() {
-        let mut target = world.pos;
+        let mut target = world.ash.pos;
         let mut target_distance = zombie.pos.distance_to(target);
 
         for human in humans.values() {
@@ -54,12 +54,12 @@ fn update_zombie_targets(world: &mut World) {
             }
         }
 
-        zombie.next = zombie.pos.towards(target, constants::MAX_ZOMBIE_STEP);
+        zombie.next = zombie.pos.towards(target, constants::MAX_ZOMBIE_STEP).floor();
     }
 }
 
 fn move_ash(world: &mut World, action: &Action) {
-    world.pos = world.pos.towards(action.target, constants::MAX_ASH_STEP);
+    world.ash.pos = world.ash.pos.towards(action.target, constants::MAX_ASH_STEP).floor();
 }
 
 fn destroy_zombies(world: &mut World, events: &mut Vec<Event>) {
@@ -70,7 +70,7 @@ fn destroy_zombies(world: &mut World, events: &mut Vec<Event>) {
     let mut multiplier_sequence = FibonacciSequence::new();
 
     for zombie in world.zombies.values() {
-        if zombie.pos.distance_to_squared(world.pos) <= max_distance_squared {
+        if zombie.pos.distance_to_squared(world.ash.pos) <= max_distance_squared {
             zombie_ids_to_delete.insert(zombie.id);
 
             let multiplier = multiplier_sequence.next() as f32;

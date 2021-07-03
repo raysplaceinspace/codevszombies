@@ -10,10 +10,20 @@ pub mod constants {
     pub const MAX_ZOMBIE_KILL_RANGE: f32 = 0.0001;
 }
 
+pub trait Positioned {
+    fn pos(&self) -> V2;
+}
+
 #[derive(Clone)]
 pub struct Human {
     pub id: i32,
     pub pos: V2,
+}
+
+impl Positioned for Human {
+    fn pos(&self) -> V2 {
+        self.pos
+    }
 }
 
 #[derive(Clone)]
@@ -23,10 +33,27 @@ pub struct Zombie {
     pub next: V2,
 }
 
+impl Positioned for Zombie {
+    fn pos(&self) -> V2 {
+        self.pos
+    }
+}
+
+#[derive(Clone)]
+pub struct Ash {
+    pub pos: V2,
+}
+
+impl Positioned for Ash {
+    fn pos(&self) -> V2 {
+        self.pos
+    }
+}
+
 #[derive(Clone)]
 pub struct World {
     pub tick: i32,
-    pub pos: V2,
+    pub ash: Ash,
     pub humans: HashMap<i32, Human>,
     pub zombies: HashMap<i32, Zombie>,
 }
@@ -35,7 +62,7 @@ impl World {
     pub fn new() -> World {
         World {
             tick: 0,
-            pos: V2::zero(),
+            ash: Ash { pos: V2::zero() },
             humans: HashMap::new(),
             zombies: HashMap::new(),
         }

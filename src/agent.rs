@@ -53,7 +53,7 @@ impl ActionEmitter<'_> {
             }
         }
 
-        action.unwrap_or(Action { target: world.pos })
+        action.unwrap_or(Action { target: world.ash.pos })
     }
 }
 
@@ -349,7 +349,7 @@ mod actions {
 
         match world.humans.get(&human_id) {
             Some(human) => {
-                let distance = world.pos.distance_to(human.pos);
+                let distance = world.ash.pos.distance_to(human.pos);
                 if distance < PRECISION {
                     None // Already at human, stop and move to next milestone
                 } else {
@@ -362,7 +362,7 @@ mod actions {
 
     fn move_to_action(target: V2, world: &World) -> Option<Action> {
         const PRECISION: f32 = 1.0;
-        let distance = world.pos.distance_to(target);
+        let distance = world.ash.pos.distance_to(target);
         if distance < PRECISION {
             None
         } else {

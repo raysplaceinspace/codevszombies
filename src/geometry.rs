@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Clone, Copy)]
 pub struct V2 {
     pub x: f32,
@@ -44,6 +46,20 @@ impl V2 {
         }
     }
 
+    pub fn floor(self) -> V2 {
+        V2 {
+            x: self.x.floor(),
+            y: self.y.floor(),
+        }
+    }
+
+    pub fn ceil(self) -> V2 {
+        V2 {
+            x: self.x.ceil(),
+            y: self.y.ceil(),
+        }
+    }
+
     pub fn length(self) -> f32 {
         self.length_squared().sqrt()
     }
@@ -87,5 +103,11 @@ impl V2 {
         } else {
             return self;
         }
+    }
+}
+
+impl fmt::Display for V2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {}", self.x, self.y)
     }
 }
