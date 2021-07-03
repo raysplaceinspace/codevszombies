@@ -1,6 +1,7 @@
 pub use super::model::*;
 
 use std::cmp;
+use std::ops;
 use std::time::Instant;
 use rand;
 use rand::Rng;
@@ -176,16 +177,17 @@ fn swap_elements(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadR
 }
 
 fn displace_section(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
-    const MAX_DISPLACE_LENGTH: usize = 8;
-    const DISPLACE_LENGTH_POWER: f32 = 2.0;
+    let range_random = RangeRandom { max_length: 8, power: 2.0 };
 
     if incumbent.milestones.len() < 2 { return None }
 
     let mut strategy = incumbent.clone(id);
 
-    let displace_from_index = rng.gen_range(0 .. incumbent.milestones.len());
-    let displace_length = cmp::min(1 + (rng.gen::<f32>().powf(DISPLACE_LENGTH_POWER) * MAX_DISPLACE_LENGTH as f32).floor() as usize, incumbent.milestones.len() - displace_from_index);
-    let displaced = strategy.milestones.drain(displace_from_index .. (displace_from_index + displace_length)).collect::<Vec<Milestone>>();
+    let from = rng.gen_range(0 .. incumbent.milestones.len());
+    let length = 1 + range_random.gen(0 .. (incumbent.milestones.len() - from), rng);
+    let to = from + length;
+
+    let displaced = strategy.milestones.drain(from..to).collect::<Vec<Milestone>>();
 
     let displace_to_index = rng.gen_range(0 .. (strategy.milestones.len() + 1)); // +1 because can displace to after the end as well
     strategy.milestones.splice(displace_to_index .. displace_to_index, displaced.into_iter());
@@ -194,20 +196,19 @@ fn displace_section(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::Thre
 }
 
 fn reverse_section(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
-    const MAX_REVERSE_LENGTH: usize = 8;
-    const REVERSE_LENGTH_POWER: f32 = 2.0;
+    let range_random = RangeRandom { max_length: 8, power: 2.0 };
 
     if incumbent.milestones.len() < 2 { return None }
 
-    let reverse_from_index = rng.gen_range(0 .. incumbent.milestones.len());
-    let reverse_length = cmp::min(1 + (rng.gen::<f32>().powf(REVERSE_LENGTH_POWER) * MAX_REVERSE_LENGTH as f32).floor() as usize, incumbent.milestones.len() - reverse_from_index);
-    let reverse_to_index = reverse_from_index + reverse_length;
+    let from = rng.gen_range(0 .. incumbent.milestones.len());
+    let length = 1 + range_random.gen(0 .. (incumbent.milestones.len() - from), rng);
+    let to = from + length;
 
     let mut strategy = Strategy::new(id);
     strategy.milestones.extend(
-        incumbent.milestones[0 .. reverse_from_index].iter()
-        .chain(incumbent.milestones[reverse_from_index .. reverse_to_index].iter().rev())
-        .chain(incumbent.milestones[reverse_to_index .. ].iter())
+        incumbent.milestones[0..from].iter()
+        .chain(incumbent.milestones[from..to].iter().rev())
+        .chain(incumbent.milestones[to..].iter())
         .map(|milestone| milestone.clone())
     );
 
@@ -255,6 +256,18 @@ fn clamp(v: f32, min_value: f32, max_value: f32) -> f32 {
     if v < min_value { min_value }
     else if v > max_value { max_value }
     else { v }
+}
+
+struct RangeRandom {
+    max_length: usize,
+    power: f32,
+}
+
+impl RangeRandom {
+    pub fn gen(&self, range: ops::Range<usize>, rng: &mut rand::prelude::ThreadRng) -> usize {
+        let base = (rng.gen::<f32>().powf(self.power) * self.max_length as f32) as usize;
+        cmp::min(range.start + base, range.end - 1)
+    }
 }
 
 mod actions {
