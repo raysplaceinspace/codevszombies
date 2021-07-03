@@ -10,7 +10,7 @@ use super::simulator;
 use super::formatter;
 
 const MAX_ROLLOUT_TICKS: i32 = 50;
-const MAX_STRATEGY_GENERATION_MILLISECONDS: u128 = 80;
+const MAX_STRATEGY_GENERATION_MILLISECONDS: u128 = 90;
 
 const INSERT_MOVE_PROPORTION: f32 = 0.1;
 const REPLACE_MOVE_PROPORTION: f32 = 0.5;
