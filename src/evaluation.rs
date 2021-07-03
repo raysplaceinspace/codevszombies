@@ -1,7 +1,9 @@
 pub use super::model::*;
 use super::simulator;
 
-const LOSS_POINTS: f32 = -10000.0;
+const WON_POINTS: f32 = 0.0;
+const POINTS_PER_ZOMBIE: f32 = -1000.0;
+const POINTS_PER_HUMAN: f32 = 0.0;
 const POINTS_PER_TICK: f32 = -0.01;
 const POINTS_PER_MILESTONE: f32 = -0.001;
 
@@ -24,12 +26,16 @@ impl ScoreAccumulator {
                 Event::ZombieKilled { score, .. } => {
                     self.total_score += score;
                 },
+                Event::HumanKilled { .. } => {
+                    self.total_score += POINTS_PER_HUMAN;
+                },
                 Event::Won{ tick, .. } => {
                     self.total_score += POINTS_PER_TICK * (*tick as f32);
+                    self.total_score += WON_POINTS;
                 },
-                Event::Lost{ tick, .. } => {
+                Event::Lost{ tick, num_zombies, .. } => {
                     self.total_score += POINTS_PER_TICK * (*tick as f32);
-                    self.total_score += LOSS_POINTS;
+                    self.total_score += POINTS_PER_ZOMBIE * (*num_zombies as f32);
                 },
                 _ => (),
             }
