@@ -109,6 +109,7 @@ impl Strategy {
     }
 }
 
+#[derive(Clone)]
 pub enum Event {
     ZombieKilled { tick: i32, zombie_id: i32, score: f32 },
     HumanKilled { tick: i32, human_id: i32 },

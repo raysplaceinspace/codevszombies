@@ -12,6 +12,10 @@ use super::simulator;
 const MAX_ROLLOUT_TICKS: i32 = 50;
 const MAX_STRATEGY_GENERATION_MILLISECONDS: u128 = 90;
 
+const MUTATE_PROPORTION: f32 = 0.95;
+const MAX_MUTATIONS: i32 = 2;
+const MUTATION_REPEAT_PROBABILITY: f32 = 0.1;
+
 const REPLACE_MOVE_PROPORTION: f32 = 0.5;
 const BUMP_MOVE_PROPORTION: f32 = 0.25;
 
@@ -23,6 +27,7 @@ const BUBBLE_PROPORTION: f32 = 0.1;
 const SWAP_PROPORTION: f32 = 0.05;
 const DISPLACE_PROPORTION: f32 = 0.5;
 
+#[derive(Clone)]
 struct Rollout {
     strategy_id: i32,
     events: Vec<Event>,
@@ -61,6 +66,7 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
     let mut rng = rand::thread_rng();
 
     let mut strategy_id = 0;
+
     let mut best_strategy = previous_strategy.clone(strategy_id);
     let mut best_strategy_result = rollout(&best_strategy, world, f32::NEG_INFINITY);
 
@@ -90,33 +96,68 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
     best_strategy
 }
 
-fn generate_strategy(id: i32, best_strategy: &Strategy, world: &World, rng: &mut rand::prelude::ThreadRng) -> Strategy {
+fn generate_strategy(id: i32, incumbent: &Strategy, world: &World, rng: &mut rand::prelude::ThreadRng) -> Strategy {
     let mut strategy: Option<Strategy> = None;
 
-    if strategy.is_none() && rng.gen::<f32>() < BUMP_MOVE_PROPORTION { strategy = bump_move(id, best_strategy, rng); }
-    if strategy.is_none() && rng.gen::<f32>() < REPLACE_MOVE_PROPORTION { strategy = replace_move(id, best_strategy, rng); }
+    if rng.gen::<f32>() < MUTATE_PROPORTION {
+        let mut candidate = incumbent.clone(id);
+        let mut mutated = false;
+        for _ in 0..MAX_MUTATIONS {
+            mutated |= mutate_strategy(&mut candidate, world, rng);
 
-    if strategy.is_none() && rng.gen::<f32>() < DROP_PROPORTION { strategy = drop_element(id, best_strategy, rng); }
+            if rng.gen::<f32>() < MUTATION_REPEAT_PROBABILITY {
+                continue;
+            } else {
+                break;
+            }
+        }
 
-    if strategy.is_none() && rng.gen::<f32>() < ATTACK_ZOMBIE_PROPORTION { strategy = insert_attack(id, world, best_strategy, rng); }
-    if strategy.is_none() && rng.gen::<f32>() < PROTECT_HUMAN_PROPORTION { strategy = insert_defend(id, world, best_strategy, rng); }
-
-    if strategy.is_none() && rng.gen::<f32>() < BUBBLE_PROPORTION { strategy = bubble_elements(id, best_strategy, rng); }
-    if strategy.is_none() && rng.gen::<f32>() < SWAP_PROPORTION { strategy = swap_elements(id, best_strategy, rng); }
-    if strategy.is_none() && rng.gen::<f32>() < DISPLACE_PROPORTION { strategy = displace_section(id, world, best_strategy, rng); }
+        if mutated {
+            strategy = Some(candidate);
+        }
+    }
 
     if strategy.is_none() {
-        strategy = Some(Strategy::new(id)); // Some(generate_strategy_from_scratch(id, world, rng));
+        strategy = Some(generate_strategy_from_scratch(id, world, rng));
     }
     strategy.unwrap()
 }
 
-fn bump_move(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+fn generate_strategy_from_scratch(id: i32, world: &World, rng: &mut rand::prelude::ThreadRng) -> Strategy {
+    let mut strategy = Strategy::new(id);
+
+    let mut remaining_zombie_ids = world.zombies.values().map(|zombie| zombie.id).collect::<Vec<i32>>();
+    while remaining_zombie_ids.len() > 0 {
+        let zombie_id = remaining_zombie_ids.remove(rng.gen_range(0..remaining_zombie_ids.len()));
+        strategy.milestones.push(Milestone::KillZombie { zombie_id });
+    }
+
+    strategy
+}
+
+fn mutate_strategy(strategy: &mut Strategy, world: &World, rng: &mut rand::prelude::ThreadRng) -> bool {
+    let mut mutated = false;
+
+    if !mutated && rng.gen::<f32>() < BUMP_MOVE_PROPORTION { mutated = bump_move(strategy, rng); }
+    if !mutated && rng.gen::<f32>() < REPLACE_MOVE_PROPORTION { mutated = replace_move(strategy, rng); }
+
+    if !mutated && rng.gen::<f32>() < DROP_PROPORTION { mutated = drop_element(strategy, rng); }
+
+    if !mutated && rng.gen::<f32>() < ATTACK_ZOMBIE_PROPORTION { mutated = insert_attack(world, strategy, rng); }
+    if !mutated && rng.gen::<f32>() < PROTECT_HUMAN_PROPORTION { mutated = insert_defend(world, strategy, rng); }
+
+    if !mutated && rng.gen::<f32>() < BUBBLE_PROPORTION { mutated = bubble_elements(strategy, rng); }
+    if !mutated && rng.gen::<f32>() < SWAP_PROPORTION { mutated = swap_elements(strategy, rng); }
+    if !mutated && rng.gen::<f32>() < DISPLACE_PROPORTION { mutated = displace_section(world, strategy, rng); }
+
+    mutated
+}
+
+fn bump_move(strategy: &mut Strategy, rng: &mut rand::prelude::ThreadRng) -> bool {
     const MUTATE_RADIUS: f32 = constants::MAX_ASH_STEP + constants::MAX_ASH_KILL_RANGE + 1.0; // Be able to step away from killing something
 
-    match choose_move_index(incumbent, rng) {
+    match choose_move_index(strategy, rng) {
         Some(move_index) => {
-            let mut strategy = incumbent.clone(id);
             match strategy.milestones[move_index] {
                 Milestone::MoveTo { target: previous } => {
                     strategy.milestones[move_index] = Milestone::MoveTo {
@@ -128,17 +169,14 @@ fn bump_move(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) 
                 },
                 _ => {},
             };
-
-            Some(strategy)
+            true
         },
-        None => None,
+        None => false,
     }
 }
 
-fn replace_move(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+fn replace_move(strategy: &mut Strategy, rng: &mut rand::prelude::ThreadRng) -> bool {
     const KEEP_PROBABILITY: f32 = 0.9;
-
-    let mut strategy = incumbent.clone(id);
 
     // Drop random number of items
     strategy.milestones.retain(|_| rng.gen::<f32>() < KEEP_PROBABILITY);
@@ -153,14 +191,15 @@ fn replace_move(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRn
         target,
     });
 
-    Some(strategy)
+    true
 }
-fn drop_element(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
-    if incumbent.milestones.len() == 0 { return None; }
-    let drop_index = rng.gen_range(0..incumbent.milestones.len());
-    let mut strategy = incumbent.clone(id);
+fn drop_element(strategy: &mut Strategy, rng: &mut rand::prelude::ThreadRng) -> bool {
+    if strategy.milestones.len() == 0 { return false; }
+
+    let drop_index = rng.gen_range(0..strategy.milestones.len());
     strategy.milestones.remove(drop_index);
-    Some(strategy)
+    
+    true
 }
 
 fn choose_move_index(strategy: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<usize> {
@@ -181,79 +220,76 @@ fn choose_move_index(strategy: &Strategy, rng: &mut rand::prelude::ThreadRng) ->
     None
 }
 
-fn insert_attack(id: i32, world: &World, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
-    if world.zombies.len() == 0 { return None }
+fn insert_attack(world: &World, strategy: &mut Strategy, rng: &mut rand::prelude::ThreadRng) -> bool {
+    if world.zombies.len() == 0 { return false }
 
     let mut zombie_ids = world.zombies.keys().map(|k| *k).collect::<HashSet<i32>>();
-    for milestone in incumbent.milestones.iter() { // Remove zombie IDs that we're already attacking
+    for milestone in strategy.milestones.iter() { // Remove zombie IDs that we're already attacking
         match milestone {
             Milestone::KillZombie { zombie_id } => { zombie_ids.remove(zombie_id); },
             _ => (),
         }
     }
-    if zombie_ids.len() == 0 { return None }
+    if zombie_ids.len() == 0 { return false }
 
     let zombie_id = *zombie_ids.iter().nth(rng.gen_range(0..zombie_ids.len())).unwrap();
-    let insert_index = rng.gen_range(0 .. (incumbent.milestones.len() + 1)); // +1 because can add at end of vec
+    let insert_index = rng.gen_range(0 .. (strategy.milestones.len() + 1)); // +1 because can add at end of vec
 
-    let mut strategy = incumbent.clone(id);
     strategy.milestones.insert(insert_index, Milestone::KillZombie {
         zombie_id,
     });
-    Some(strategy)
+
+    true
 }
 
-fn insert_defend(id: i32, world: &World, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
-    if world.humans.len() == 0 { return None }
+fn insert_defend(world: &World, strategy: &mut Strategy, rng: &mut rand::prelude::ThreadRng) -> bool {
+    if world.humans.len() == 0 { return false; }
 
     let human_index = rng.gen_range(0..world.humans.len());
     let human = world.humans.values().nth(human_index).unwrap();
 
-    let insert_index = rng.gen_range(0 .. (incumbent.milestones.len() + 1)); // +1 because can add at end of vec
+    let insert_index = rng.gen_range(0 .. (strategy.milestones.len() + 1)); // +1 because can add at end of vec
 
-    let mut strategy = incumbent.clone(id);
     strategy.milestones.insert(insert_index, Milestone::MoveTo{
         target: human.pos,
     });
-    Some(strategy)
+
+    true
 }
 
-fn bubble_elements(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
-    if incumbent.milestones.len() < 2 { return None }
+fn bubble_elements(strategy: &mut Strategy, rng: &mut rand::prelude::ThreadRng) -> bool {
+    if strategy.milestones.len() < 2 { return false; }
 
-    let mut strategy = incumbent.clone(id);
-    let bubble_index = rng.gen_range(0..(incumbent.milestones.len() - 1));
+    let bubble_index = rng.gen_range(0..(strategy.milestones.len() - 1));
     strategy.milestones.swap(bubble_index, bubble_index + 1);
-    Some(strategy)
+
+    true
 }
 
-fn swap_elements(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
-    if incumbent.milestones.len() < 2 { return None }
+fn swap_elements(strategy: &mut Strategy, rng: &mut rand::prelude::ThreadRng) -> bool {
+    if strategy.milestones.len() < 2 { return false; }
 
-    let mut strategy = incumbent.clone(id);
-
-    let from_index = rng.gen_range(0..(incumbent.milestones.len() - 1));
-    let mut to_index = rng.gen_range(0..(incumbent.milestones.len() - 1));
+    let from_index = rng.gen_range(0..(strategy.milestones.len() - 1));
+    let mut to_index = rng.gen_range(0..(strategy.milestones.len() - 1));
     if from_index == to_index {
         to_index += 1;
     }
 
     strategy.milestones.swap(from_index, to_index);
 
-    Some(strategy)
+    true
 }
 
-fn displace_section(id: i32, world: &World, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+fn displace_section(world: &World, strategy: &mut Strategy, rng: &mut rand::prelude::ThreadRng) -> bool {
     let range_random = RangeRandom { max_length: cmp::min(world.zombies.len(), 10), power: 2.0 };
 
-    if incumbent.milestones.len() < 2 { return None }
+    if strategy.milestones.len() < 2 { return false; }
 
-    let from = rng.gen_range(0 .. incumbent.milestones.len());
-    let length = 1 + range_random.gen(0 .. (incumbent.milestones.len() - from), rng);
+    let from = rng.gen_range(0 .. strategy.milestones.len());
+    let length = 1 + range_random.gen(0 .. (strategy.milestones.len() - from), rng);
     let to = from + length;
     let reverse = rng.gen::<f32>() < 0.5;
 
-    let mut strategy = incumbent.clone(id);
     let displaced = strategy.milestones.drain(from..to).collect::<Vec<Milestone>>();
     let displace_to_index = rng.gen_range(0 .. (strategy.milestones.len() + 1)); // +1 because can displace to after the end as well
 
@@ -263,7 +299,7 @@ fn displace_section(id: i32, world: &World, incumbent: &Strategy, rng: &mut rand
         strategy.milestones.splice(displace_to_index .. displace_to_index, displaced.into_iter());
     }
 
-    Some(strategy)
+    true
 }
 
 fn rollout(strategy: &Strategy, initial: &World, best_score: f32) -> Rollout {
