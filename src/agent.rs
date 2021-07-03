@@ -12,12 +12,14 @@ use super::formatter;
 const MAX_ROLLOUT_TICKS: i32 = 50;
 const MAX_STRATEGY_GENERATION_MILLISECONDS: u128 = 80;
 
-const INSERT_MOVE_PROPORTION: f32 = 0.5;
+const INSERT_MOVE_PROPORTION: f32 = 0.1;
+const REPLACE_MOVE_PROPORTION: f32 = 0.5;
 const DROP_MOVE_PROPORTION: f32 = 0.1;
 
-const BUMP_PROPORTION: f32 = 0.25;
+const BUMP_MOVE_PROPORTION: f32 = 0.25;
+
 const BUBBLE_PROPORTION: f32 = 0.1;
-const SWAP_PROPORTION: f32 = 0.1;
+const SWAP_PROPORTION: f32 = 0.05;
 const DISPLACE_PROPORTION: f32 = 0.2;
 const REVERSE_PROPORTION: f32 = 0.05;
 
@@ -85,9 +87,10 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
 fn generate_strategy(id: i32, best_strategy: &Strategy, world: &World, rng: &mut rand::prelude::ThreadRng) -> Strategy {
     let mut strategy: Option<Strategy> = None;
 
+    if strategy.is_none() && rng.gen::<f32>() < REPLACE_MOVE_PROPORTION { strategy = replace_move(id, best_strategy, rng); }
     if strategy.is_none() && rng.gen::<f32>() < INSERT_MOVE_PROPORTION { strategy = insert_move(id, best_strategy, rng); }
     if strategy.is_none() && rng.gen::<f32>() < DROP_MOVE_PROPORTION { strategy = drop_move(id, best_strategy, rng); }
-    if strategy.is_none() && rng.gen::<f32>() < BUMP_PROPORTION { strategy = bump_elements(id, best_strategy, rng); }
+    if strategy.is_none() && rng.gen::<f32>() < BUMP_MOVE_PROPORTION { strategy = bump_move(id, best_strategy, rng); }
 
     if strategy.is_none() && rng.gen::<f32>() < BUBBLE_PROPORTION { strategy = bubble_elements(id, best_strategy, rng); }
     if strategy.is_none() && rng.gen::<f32>() < SWAP_PROPORTION { strategy = swap_elements(id, best_strategy, rng); }
@@ -112,8 +115,8 @@ fn generate_strategy_from_scratch(id: i32, world: &World, rng: &mut rand::prelud
     strategy
 }
 
-fn bump_elements(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
-    const MUTATE_RADIUS: f32 = constants::MAX_ASH_STEP + 1.0;
+fn bump_move(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+    const MUTATE_RADIUS: f32 = constants::MAX_ASH_STEP + constants::MAX_ASH_KILL_RANGE + 1.0; // Be able to step away from killing something
 
     match choose_move_index(incumbent, rng) {
         Some(move_index) => {
@@ -122,8 +125,8 @@ fn bump_elements(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadR
                 Milestone::MoveTo { target: previous } => {
                     strategy.milestones[move_index] = Milestone::MoveTo {
                         target: V2 {
-                            x: clamp(previous.x + rng.gen_range(-MUTATE_RADIUS..MUTATE_RADIUS) as f32, 0.0, constants::MAP_WIDTH as f32),
-                            y: clamp(previous.y + rng.gen_range(-MUTATE_RADIUS..MUTATE_RADIUS) as f32, 0.0, constants::MAP_HEIGHT as f32),
+                            x: clamp(previous.x + rng.gen_range(-MUTATE_RADIUS..MUTATE_RADIUS), 0.0, constants::MAP_WIDTH as f32),
+                            y: clamp(previous.y + rng.gen_range(-MUTATE_RADIUS..MUTATE_RADIUS), 0.0, constants::MAP_HEIGHT as f32),
                         },
                     }
                 },
@@ -145,6 +148,21 @@ fn insert_move(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng
         },
     });
     Some(strategy)
+}
+fn replace_move(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+    match choose_move_index(incumbent, rng) {
+        Some(move_index) => {
+            let mut strategy = incumbent.clone(id);
+            strategy.milestones[move_index] = Milestone::MoveTo {
+                target: V2 {
+                    x: rng.gen_range(0..constants::MAP_WIDTH) as f32,
+                    y: rng.gen_range(0..constants::MAP_HEIGHT) as f32,
+                },
+            };
+            Some(strategy)
+        },
+        None => None,
+    }
 }
 fn drop_move(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
     match choose_move_index(incumbent, rng) {
