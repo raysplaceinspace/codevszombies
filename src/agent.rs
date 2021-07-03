@@ -135,12 +135,15 @@ fn bump_move(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) 
 }
 
 fn insert_move(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+    let target = V2 {
+        x: rng.gen_range(0..constants::MAP_WIDTH) as f32,
+        y: rng.gen_range(0..constants::MAP_HEIGHT) as f32,
+    };
+    let insert_index = rng.gen_range(0 .. (incumbent.milestones.len() + 1)); // +1 because can add to end of list
+
     let mut strategy = incumbent.clone(id);
-    strategy.milestones.insert(0, Milestone::MoveTo {
-        target: V2 {
-            x: rng.gen_range(0..constants::MAP_WIDTH) as f32,
-            y: rng.gen_range(0..constants::MAP_HEIGHT) as f32,
-        },
+    strategy.milestones.insert(insert_index, Milestone::MoveTo {
+        target,
     });
     Some(strategy)
 }
