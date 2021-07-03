@@ -163,7 +163,7 @@ fn displace_strategy(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::Thr
     let mut strategy = incumbent.clone(id);
 
     let displace_from_index = rng.gen_range(0 .. incumbent.milestones.len());
-    let displace_length = (1.0 + rng.gen::<f32>().powf(DISPLACE_LENGTH_POWER) * cmp::min(MAX_DISPLACE_LENGTH, incumbent.milestones.len() - displace_from_index) as f32).floor() as usize;
+    let displace_length = cmp::min(1 + (rng.gen::<f32>().powf(DISPLACE_LENGTH_POWER) * MAX_DISPLACE_LENGTH as f32).floor() as usize, incumbent.milestones.len() - displace_from_index);
     let displaced = strategy.milestones.drain(displace_from_index .. (displace_from_index + displace_length)).collect::<Vec<Milestone>>();
 
     let displace_to_index = rng.gen_range(0 .. (strategy.milestones.len() + 1)); // +1 because can displace to after the end as well
