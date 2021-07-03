@@ -3,6 +3,7 @@ pub use super::model::*;
 use std::time::Instant;
 use rand;
 use rand::Rng;
+use rand::prelude::ThreadRng;
 use super::evaluation;
 use super::evaluation::ScoreParams;
 use super::mutations;
@@ -16,6 +17,61 @@ const MUTATE_PROPORTION: f32 = 0.5;
 
 const MAX_MOVES_FROM_SCRATCH: i32 = 1;
 
+struct StrategyPool {
+    strategy_id: i32,
+    score_sheet: Vec<ScoreParams>,
+    best: Rollout,
+    entries: Vec<StrategyPoolEntry>,
+}
+
+impl StrategyPool {
+    fn new(world: &World, score_sheet: Vec<ScoreParams>) -> StrategyPool {
+        let mut strategy_id = 0;
+        let rollout = rollouts::rollout(Strategy::new(strategy_id), world, &score_sheet);
+        strategy_id += 1;
+
+        StrategyPool {
+            strategy_id,
+            entries: (0..score_sheet.len()).map(|i| StrategyPoolEntry::from(&rollout, i)).collect::<Vec<_>>(),
+            best: rollout,
+            score_sheet,
+        }
+    }
+
+    fn accept(&mut self, strategy: Strategy, world: &World) {
+        let rollout = rollouts::rollout(strategy, world, &self.score_sheet);
+
+        // Improve pool
+        for i in 0..self.entries.len() {
+            let score = rollout.scores[i];
+            if score > self.entries[i].score {
+                self.entries[i] = StrategyPoolEntry::from(&rollout, i);
+            }
+        }
+
+        // Improve best
+        if rollout.scores[0] > self.best.scores[0] {
+            self.best = rollout;
+        }
+    }
+
+    fn import(&mut self, strategies: Vec<Strategy>, world: &World) {
+        for strategy in strategies {
+            let candidate = strategy.seed(self.strategy_id);
+            self.strategy_id += 1;
+            self.accept(candidate, world);
+        }
+    }
+
+    fn export(&mut self) -> Vec<Strategy> {
+        self.entries.iter().map(|entry| entry.strategy.clone()).collect::<Vec<Strategy>>()
+    }
+
+    fn gen(&self, rng: &mut ThreadRng) -> &Strategy {
+        &self.entries[rng.gen_range(0..self.entries.len())].strategy
+    }
+}
+
 struct StrategyPoolEntry {
     strategy: Strategy,
     score: f32,
@@ -24,17 +80,26 @@ struct StrategyPoolEntry {
 }
 
 impl StrategyPoolEntry {
-    pub fn from(rollout: &Rollout, score: f32) -> StrategyPoolEntry {
+    fn new() -> StrategyPoolEntry {
+        StrategyPoolEntry {
+            strategy: Strategy::new(-1),
+            score: f32::NEG_INFINITY,
+            actual: f32::NEG_INFINITY,
+            ending: WorldState::new(),
+        }
+    }
+
+    fn from(rollout: &Rollout, score_sheet_index: usize) -> StrategyPoolEntry {
         StrategyPoolEntry {
             strategy: rollout.strategy.clone(),
-            score,
+            score: rollout.scores[score_sheet_index],
             actual: rollout.scores[0],
             ending: rollout.ending.clone(),
         }
     }
 }
 
-pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
+pub fn choose(world: &World, previous_strategies: Vec<Strategy>) -> Vec<Strategy> {
     let mut rng = rand::thread_rng();
 
     let mut strategy_id = 0;
@@ -44,47 +109,34 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
         score_sheet.push(evaluation::ScoreParams::gen(&mut rng));
     }
 
-    let mut best_rollout = rollouts::rollout(previous_strategy.seed(strategy_id), world, &score_sheet);
-    let mut pool = best_rollout.scores.iter().map(|score| StrategyPoolEntry::from(&best_rollout, *score)).collect::<Vec<_>>();
+    let mut pool = StrategyPool::new(world, score_sheet);
+    pool.import(previous_strategies, world);
 
-    let initial_scores = best_rollout.scores.clone();
+    let initial_scores = pool.entries.iter().map(|entry| entry.score).collect::<Vec<_>>();
 
     let start = Instant::now();
     while start.elapsed().as_millis() < MAX_STRATEGY_GENERATION_MILLISECONDS {
         strategy_id += 1;
 
-        let initial_strategy = &pool[rng.gen_range(0..pool.len())].strategy;
+        let initial_strategy = pool.gen(&mut rng);
         let strategy = generate_strategy(strategy_id, &initial_strategy, world, &mut rng);
-        let rollout = rollouts::rollout(strategy, world, &score_sheet);
-
-        // Improve pool
-        for i in 0..pool.len() {
-            let score = rollout.scores[i];
-            if score > pool[i].score {
-                pool[i] = StrategyPoolEntry::from(&rollout, score);
-            }
-        }
-
-        // Improve overall best
-        if rollout.scores[0] > best_rollout.scores[0] {
-            best_rollout = rollout;
-        }
+        pool.accept(strategy, world);
     }
 
-    eprintln!("Chosen generation {} after {} total generations", best_rollout.strategy.id, strategy_id);
-    eprintln!("Chosen strategy: {}", &best_rollout.strategy);
+    eprintln!("Chosen generation {} after {} total generations", pool.best.strategy.id, strategy_id);
+    eprintln!("Chosen strategy: {}", &pool.best.strategy);
 
     eprintln!("Optimized score (after {} generations):", strategy_id);
-    for i in 0..score_sheet.len() {
-        eprintln!(" #[{}]: {} -> {} ({}) (h={}, z={})", pool[i].strategy.id, initial_scores[i], pool[i].score, pool[i].actual, pool[i].ending.num_humans, pool[i].ending.num_zombies);
+    for (i, entry) in pool.entries.iter().enumerate() {
+        eprintln!(" #[{}]: {} -> {} ({}) (h={}, z={})", entry.strategy.id, initial_scores[i], entry.score, entry.actual, entry.ending.num_humans, entry.ending.num_zombies);
     }
 
-    eprintln!("Tick {}: chosen strategy rolled out to tick {}", world.tick, best_rollout.ending.tick);
-    for event in best_rollout.events.iter() {
+    eprintln!("Tick {}: chosen strategy rolled out to tick {}", world.tick, pool.best.ending.tick);
+    for event in pool.best.events.iter() {
         eprintln!(" {}", event);
     }
     
-    best_rollout.strategy
+    pool.export()
 }
 
 fn generate_strategy(id: i32, incumbent: &Strategy, world: &World, rng: &mut rand::prelude::ThreadRng) -> Strategy {

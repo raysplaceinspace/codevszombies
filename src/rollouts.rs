@@ -22,7 +22,7 @@ pub struct WorldState {
 
 impl WorldState {
     pub fn new() -> WorldState {
-        WorldState { tick: 0, num_zombies: 0, num_humans: 0 }
+        WorldState { tick: -1, num_zombies: 0, num_humans: 0 }
     }
 
     pub fn from(world: &World) -> WorldState {
