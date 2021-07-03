@@ -1,5 +1,6 @@
 pub use super::model::*;
 
+use std::cmp;
 use std::time::Instant;
 use rand;
 use rand::Rng;
@@ -9,6 +10,10 @@ use super::formatter;
 
 const MAX_ROLLOUT_TICKS: i32 = 50;
 const MAX_STRATEGY_GENERATION_MILLISECONDS: u128 = 80;
+const GENERATE_MOVE_PROBABILITY: f32 = 0.5;
+const BUMP_PROPORTION: f32 = 0.25;
+const BUBBLE_PROPORTION: f32 = 0.1;
+const DISPLACE_PROPORTION: f32 = 0.3;
 
 struct Rollout {
     strategy_id: i32,
@@ -21,16 +26,14 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
     let mut rng = rand::thread_rng();
 
     let mut strategy_id = 0;
-    let mut best_strategy = previous_strategy.clone();
-    best_strategy.id = strategy_id;
-
+    let mut best_strategy = previous_strategy.clone(strategy_id);
     let mut best_strategy_result = rollout(&best_strategy, world, f32::INFINITY);
 
     let start = Instant::now();
     while start.elapsed().as_millis() < MAX_STRATEGY_GENERATION_MILLISECONDS {
         strategy_id += 1;
 
-        let strategy = generate_strategy(strategy_id, world, &mut rng);
+        let strategy = generate_strategy(strategy_id, &best_strategy, world, &mut rng);
         let rollout_result = rollout(&strategy, world, best_strategy_result.score);
         if rollout_result.score > best_strategy_result.score {
             best_strategy_result = rollout_result;
@@ -46,10 +49,23 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
     best_strategy
 }
 
-fn generate_strategy(id: i32, world: &World, rng: &mut rand::prelude::ThreadRng) -> Strategy {
+fn generate_strategy(id: i32, best_strategy: &Strategy, world: &World, rng: &mut rand::prelude::ThreadRng) -> Strategy {
+    let mut strategy: Option<Strategy> = None;
+
+    if strategy.is_none() && rng.gen::<f32>() < BUMP_PROPORTION { strategy = bump_strategy(id, best_strategy, rng); }
+    if strategy.is_none() && rng.gen::<f32>() < BUBBLE_PROPORTION { strategy = bubble_strategy(id, best_strategy, rng); }
+    if strategy.is_none() && rng.gen::<f32>() < DISPLACE_PROPORTION { strategy = displace_strategy(id, best_strategy, rng); }
+
+    if strategy.is_none() {
+        strategy = Some(generate_strategy_from_scratch(id, world, rng));
+    }
+    strategy.unwrap()
+}
+
+fn generate_strategy_from_scratch(id: i32, world: &World, rng: &mut rand::prelude::ThreadRng) -> Strategy {
     let mut strategy = Strategy::new(id);
 
-    if rng.gen::<f32>() < 0.5 {
+    if rng.gen::<f32>() < GENERATE_MOVE_PROBABILITY {
         let target = V2 {
             x: rng.gen_range(0..constants::MAP_WIDTH) as f32,
             y: rng.gen_range(0..constants::MAP_HEIGHT) as f32,
@@ -64,6 +80,69 @@ fn generate_strategy(id: i32, world: &World, rng: &mut rand::prelude::ThreadRng)
     }
 
     strategy
+}
+
+fn bump_strategy(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+    const MUTATE_RADIUS: f32 = constants::MAX_ASH_STEP + 1.0;
+
+    let num_move_milestones =
+        incumbent.milestones.iter()
+        .filter(|milestone| match milestone { Milestone::MoveTo{..} => true, _ => false })
+        .count();
+    if num_move_milestones == 0 { return None }
+
+    let target_move_milestone_index = rng.gen_range(0..num_move_milestones); // Only modify this MoveTo milestone, no others
+    let mut move_milestone_index = 0 as usize;
+
+    let mut strategy = Strategy::new(id);
+    strategy.milestones.extend(incumbent.milestones.iter().map(|milestone| {
+        match milestone {
+            Milestone::MoveTo { target } => {
+                let result: Milestone;
+                if move_milestone_index == target_move_milestone_index {
+                    result = Milestone::MoveTo {
+                        target: V2 {
+                            x: clamp(target.x + rng.gen_range(-MUTATE_RADIUS..MUTATE_RADIUS) as f32, 0.0, constants::MAP_WIDTH as f32),
+                            y: clamp(target.y + rng.gen_range(-MUTATE_RADIUS..MUTATE_RADIUS) as f32, 0.0, constants::MAP_HEIGHT as f32),
+                        },
+                    }
+                } else {
+                    result = milestone.clone();
+                }
+                move_milestone_index += 1;
+                result
+            },
+            _ => milestone.clone(),
+        }
+    }));
+
+    Some(strategy)
+}
+
+fn bubble_strategy(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+    if incumbent.milestones.len() < 2 { return None }
+
+    let mut strategy = incumbent.clone(id);
+    let bubble_index = rng.gen_range(0..(incumbent.milestones.len() - 1));
+    strategy.milestones.swap(bubble_index, bubble_index + 1);
+    Some(strategy)
+}
+
+fn displace_strategy(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+    const MAX_DISPLACE_LENGTH: usize = 8;
+
+    if incumbent.milestones.len() < 2 { return None }
+
+    let mut strategy = incumbent.clone(id);
+
+    let displace_from_index = rng.gen_range(0 .. incumbent.milestones.len());
+    let displace_length = 1 + rng.gen_range(0 .. cmp::min(MAX_DISPLACE_LENGTH, incumbent.milestones.len() - displace_from_index));
+    let displaced = strategy.milestones.drain(displace_from_index .. (displace_from_index + displace_length)).collect::<Vec<Milestone>>();
+
+    let displace_to_index = rng.gen_range(0 .. (strategy.milestones.len() + 1)); // +1 because can displace to after the end as well
+    strategy.milestones.splice(displace_to_index .. displace_to_index, displaced.into_iter());
+
+    Some(strategy)
 }
 
 fn rollout(strategy: &Strategy, initial: &World, best_score: f32) -> Rollout {
@@ -132,4 +211,10 @@ fn move_to_action(target: V2, world: &World) -> Option<Action> {
     } else {
         Some(Action { target })
     }
+}
+
+fn clamp(v: f32, min_value: f32, max_value: f32) -> f32 {
+    if v < min_value { min_value }
+    else if v > max_value { max_value }
+    else { v }
 }

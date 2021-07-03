@@ -42,7 +42,6 @@ pub enum Milestone {
     MoveTo { target: V2 },
 }
 
-#[derive(Clone)]
 pub struct Strategy {
     pub id: i32,
     pub milestones: Vec<Milestone>,
@@ -51,6 +50,17 @@ pub struct Strategy {
 impl Strategy {
     pub fn new(id: i32) -> Strategy {
         Strategy { id, milestones: Vec::new() }
+    }
+
+    pub fn clone(&self, id: i32) -> Strategy {
+        Strategy {
+            id,
+            milestones: self.milestones.clone(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.milestones.len() == 0
     }
 }
 
