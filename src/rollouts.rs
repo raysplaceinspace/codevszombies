@@ -1,16 +1,16 @@
 pub use super::model::*;
 
-use super::evaluation;
+use super::evaluation::{ScoreAccumulator, ScoreParams};
 use super::simulator;
 
 const MAX_ROLLOUT_TICKS: i32 = 50;
 
 #[derive(Clone)]
 pub struct Rollout {
-    pub strategy_id: i32,
+    pub strategy: Strategy,
     pub events: Vec<Event>,
     pub final_tick: i32,
-    pub score: f32,
+    pub scores: Vec<f32>,
 }
 
 struct ActionEmitter<'a> {
@@ -41,19 +41,24 @@ impl ActionEmitter<'_> {
 }
 
 
-pub fn rollout(strategy: &Strategy, initial: &World) -> Rollout {
+pub fn rollout(strategy: Strategy, initial: &World, score_params: &Vec<ScoreParams>) -> Rollout {
     let mut world = initial.clone();
     let mut events = Vec::<Event>::new();
 
-    let mut score_accumulator = evaluation::ScoreAccumulator::new();
-    let mut action_emitter = ActionEmitter::new(strategy);
+    let mut score_accumulators = score_params.iter().map(|params| ScoreAccumulator::new(&world, params)).collect::<Vec<_>>();
+    let mut action_emitter = ActionEmitter::new(&strategy);
 
-    score_accumulator.evaluate_strategy(&strategy);
+    for score_accumulator in score_accumulators.iter_mut() {
+        score_accumulator.evaluate_strategy(&strategy);
+    }
 
     for _ in 0..MAX_ROLLOUT_TICKS {
         let action = action_emitter.next(&world);
         let tick_events = simulator::next(&mut world, &action);
-        score_accumulator.accumulate(&tick_events);
+
+        for score_accumulator in score_accumulators.iter_mut() {
+            score_accumulator.accumulate(&tick_events);
+        }
 
         let is_finished = tick_events.iter().any(|event| event.is_ending());
         events.extend(tick_events.into_iter());
@@ -62,10 +67,10 @@ pub fn rollout(strategy: &Strategy, initial: &World) -> Rollout {
     }
 
     Rollout {
-        strategy_id: strategy.id,
+        strategy,
         events,
         final_tick: world.tick,
-        score: score_accumulator.total_score,
+        scores: score_accumulators.iter().map(|x| x.total_score).collect::<Vec<f32>>(),
     }
 }
 

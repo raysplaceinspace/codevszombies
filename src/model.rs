@@ -87,6 +87,7 @@ impl Milestone {
     }
 }
 
+#[derive(Clone)]
 pub struct Strategy {
     pub id: i32,
     pub milestones: Vec<Milestone>,
@@ -97,7 +98,7 @@ impl Strategy {
         Strategy { id, milestones: Vec::new() }
     }
 
-    pub fn clone(&self, id: i32) -> Strategy {
+    pub fn seed(&self, id: i32) -> Strategy {
         Strategy {
             id,
             milestones: self.milestones.clone(),
