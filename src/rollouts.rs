@@ -9,8 +9,25 @@ const MAX_ROLLOUT_TICKS: i32 = 50;
 pub struct Rollout {
     pub strategy: Strategy,
     pub events: Vec<Event>,
-    pub final_tick: i32,
+    pub ending: WorldState,
     pub scores: Vec<f32>,
+}
+
+#[derive(Clone)]
+pub struct WorldState {
+    pub tick: i32,
+    pub num_zombies: usize,
+    pub num_humans: usize,
+}
+
+impl WorldState {
+    pub fn new() -> WorldState {
+        WorldState { tick: 0, num_zombies: 0, num_humans: 0 }
+    }
+
+    pub fn from(world: &World) -> WorldState {
+        WorldState { tick: world.tick, num_zombies: world.zombies.len(), num_humans: world.humans.len() }
+    }
 }
 
 struct ActionEmitter<'a> {
@@ -69,7 +86,7 @@ pub fn rollout(strategy: Strategy, initial: &World, score_params: &Vec<ScorePara
     Rollout {
         strategy,
         events,
-        final_tick: world.tick,
+        ending: WorldState::from(&world),
         scores: score_accumulators.iter().map(|x| x.total_score).collect::<Vec<f32>>(),
     }
 }

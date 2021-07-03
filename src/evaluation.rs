@@ -11,6 +11,7 @@ const POINTS_PER_MILESTONE: f32 = -0.001;
 
 pub struct ScoreParams {
     save_humans_multiplier: f32,
+    kill_zombies_multiplier: f32,
     discount_rate: f32,
 }
 
@@ -18,12 +19,14 @@ impl ScoreParams {
     pub fn official() -> ScoreParams {
         ScoreParams {
             save_humans_multiplier: 0.0,
+            kill_zombies_multiplier: 1.0,
             discount_rate: 1.0,
         }
     }
 
     pub fn gen(rng: &mut rand::prelude::ThreadRng) -> ScoreParams {
         ScoreParams {
+            kill_zombies_multiplier: rng.gen::<f32>(),
             save_humans_multiplier: rng.gen::<f32>(),
             discount_rate: 1.0 + rng.gen::<f32>(),
         }
@@ -50,7 +53,7 @@ impl ScoreAccumulator<'_> {
             match event {
                 Event::ZombieKilled { tick, score, .. } => {
                     let discount = self.discount(*tick);
-                    self.total_score += discount * score;
+                    self.total_score += discount * self.params.kill_zombies_multiplier * score;
                 },
                 Event::HumanKilled { tick, .. } => {
                     let discount = self.discount(*tick);

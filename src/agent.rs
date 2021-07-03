@@ -6,6 +6,7 @@ use rand::Rng;
 use super::evaluation;
 use super::mutations;
 use super::rollouts;
+use super::rollouts::{Rollout, WorldState};
 
 const MAX_STRATEGY_GENERATION_MILLISECONDS: u128 = 90;
 
@@ -18,11 +19,16 @@ const MAX_MOVES_FROM_SCRATCH: i32 = 1;
 struct StrategyPoolEntry {
     strategy: Strategy,
     score: f32,
+    ending: WorldState,
 }
 
 impl StrategyPoolEntry {
-    pub fn new(strategy: Strategy, score: f32) -> StrategyPoolEntry {
-        StrategyPoolEntry { strategy, score }
+    pub fn from(rollout: &Rollout, score: f32) -> StrategyPoolEntry {
+        StrategyPoolEntry {
+            strategy: rollout.strategy.clone(),
+            score,
+            ending: rollout.ending.clone(),
+        }
     }
 }
 
@@ -40,7 +46,7 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
     ];
 
     let mut best_rollout = rollouts::rollout(previous_strategy.seed(strategy_id), world, &score_sheet);
-    let mut pool = best_rollout.scores.iter().map(|score| StrategyPoolEntry::new(best_rollout.strategy.clone(), *score)).collect::<Vec<_>>();
+    let mut pool = best_rollout.scores.iter().map(|score| StrategyPoolEntry::from(&best_rollout, *score)).collect::<Vec<_>>();
 
     let initial_scores = best_rollout.scores.clone();
 
@@ -56,7 +62,7 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
         for i in 0..pool.len() {
             let score = rollout.scores[i];
             if score > pool[i].score {
-                pool[i] = StrategyPoolEntry::new(rollout.strategy.clone(), score);
+                pool[i] = StrategyPoolEntry::from(&rollout, score);
             }
         }
 
@@ -71,10 +77,10 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
 
     eprintln!("Optimized score (after {} generations): {} -> {}", strategy_id, initial_scores[0], best_rollout.scores[0]);
     for i in 0..score_sheet.len() {
-        eprintln!(" #{}: {} -> {} [{}]", i, initial_scores[i], pool[i].score, pool[i].strategy.id);
+        eprintln!(" #{}: {} -> {} [{}] (h={}, z={})", i, initial_scores[i], pool[i].score, pool[i].strategy.id, pool[i].ending.num_humans, pool[i].ending.num_zombies);
     }
 
-    eprintln!("Tick {}: chosen strategy rolled out to tick {}", world.tick, best_rollout.final_tick);
+    eprintln!("Tick {}: chosen strategy rolled out to tick {}", world.tick, best_rollout.ending.tick);
     for event in best_rollout.events.iter() {
         eprintln!(" {}", event);
     }
