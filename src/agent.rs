@@ -22,6 +22,33 @@ struct Rollout {
     score: f32,
 }
 
+struct ActionEmitter<'a> {
+    strategy: &'a Strategy,
+    current_index: usize,
+}
+
+impl ActionEmitter<'_> {
+    pub fn new<'a>(strategy: &'a Strategy) -> ActionEmitter<'a> {
+        ActionEmitter { strategy, current_index: 0 }
+    }
+
+    pub fn next(&mut self, world: &World) -> Action {
+        let mut action: Option<Action> = None;
+
+        while self.current_index < self.strategy.milestones.len() {
+            let milestone = &self.strategy.milestones[self.current_index];
+            action = actions::from_milestone(milestone, world);
+
+            match action {
+                Some(_) => break, // Found a valid action, return it and don't advance to next milestone
+                None => { self.current_index += 1 }, // Milestone complete, consume this milestone
+            }
+        }
+
+        action.unwrap_or(Action { target: world.pos })
+    }
+}
+
 pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
     let mut rng = rand::thread_rng();
 
@@ -148,9 +175,11 @@ fn displace_strategy(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::Thr
 fn rollout(strategy: &Strategy, initial: &World, best_score: f32) -> Rollout {
     let mut world = initial.clone();
     let mut events = Vec::<Event>::new();
+
     let mut score_accumulator = evaluation::ScoreAccumulator::new();
+    let mut action_emitter = ActionEmitter::new(strategy);
     for _ in 0..MAX_ROLLOUT_TICKS {
-        let action = strategy_to_action(strategy, &world);
+        let action = action_emitter.next(&world);
         let tick_events = simulator::next(&mut world, &action);
         score_accumulator.accumulate(&tick_events);
 
@@ -176,45 +205,40 @@ fn rollout(strategy: &Strategy, initial: &World, best_score: f32) -> Rollout {
 }
 
 pub fn strategy_to_action(strategy: &Strategy, world: &World) -> Action {
-    for milestone in strategy.milestones.iter() {
-        match milestone_to_action(milestone, world) {
-            Some(action) => {
-                return action;
-            },
-            None => (),
-        }
-    }
-
-    // Fallback to non-action
-    Action { target: world.pos }
-}
-
-fn milestone_to_action(milestone: &Milestone, world: &World) -> Option<Action> {
-    match milestone {
-        Milestone::KillZombie { zombie_id } => kill_zombie_to_action(*zombie_id, world),
-        Milestone::MoveTo { target } => move_to_action(*target, world),
-    }
-}
-
-fn kill_zombie_to_action(zombie_id: i32, world: &World) -> Option<Action> {
-    match world.zombies.get(&zombie_id) {
-        Some(zombie) => Some(Action { target: zombie.next }),
-        None => None,
-    }
-}
-
-fn move_to_action(target: V2, world: &World) -> Option<Action> {
-    const PRECISION: f32 = 1.0;
-    let distance = world.pos.distance_to(target);
-    if distance < PRECISION {
-        None
-    } else {
-        Some(Action { target })
-    }
+    let mut action_emitter = ActionEmitter::new(strategy);
+    action_emitter.next(world)
 }
 
 fn clamp(v: f32, min_value: f32, max_value: f32) -> f32 {
     if v < min_value { min_value }
     else if v > max_value { max_value }
     else { v }
+}
+
+mod actions {
+    use super::*;
+
+    pub fn from_milestone(milestone: &Milestone, world: &World) -> Option<Action> {
+        match milestone {
+            Milestone::KillZombie { zombie_id } => kill_zombie_to_action(*zombie_id, world),
+            Milestone::MoveTo { target } => move_to_action(*target, world),
+        }
+    }
+
+    fn kill_zombie_to_action(zombie_id: i32, world: &World) -> Option<Action> {
+        match world.zombies.get(&zombie_id) {
+            Some(zombie) => Some(Action { target: zombie.next }),
+            None => None,
+        }
+    }
+
+    fn move_to_action(target: V2, world: &World) -> Option<Action> {
+        const PRECISION: f32 = 1.0;
+        let distance = world.pos.distance_to(target);
+        if distance < PRECISION {
+            None
+        } else {
+            Some(Action { target })
+        }
+    }
 }
