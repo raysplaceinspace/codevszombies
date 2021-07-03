@@ -1,6 +1,7 @@
 pub use super::model::*;
 
 use std::cmp;
+use std::collections::HashSet;
 use std::ops;
 use std::time::Instant;
 use rand;
@@ -182,10 +183,18 @@ fn choose_move_index(strategy: &Strategy, rng: &mut rand::prelude::ThreadRng) ->
 }
 
 fn insert_attack(id: i32, world: &World, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
-    let num_zombies = world.zombies.len();
-    if num_zombies == 0 { return None }
+    if world.zombies.len() == 0 { return None }
 
-    let zombie_id = world.zombies.values().nth(rng.gen_range(0..num_zombies)).unwrap().id;
+    let mut zombie_ids = world.zombies.keys().map(|k| *k).collect::<HashSet<i32>>();
+    for milestone in incumbent.milestones.iter() { // Remove zombie IDs that we're already attacking
+        match milestone {
+            Milestone::KillZombie { zombie_id } => { zombie_ids.remove(zombie_id); },
+            _ => (),
+        }
+    }
+    if zombie_ids.len() == 0 { return None }
+
+    let zombie_id = *zombie_ids.iter().nth(rng.gen_range(0..zombie_ids.len())).unwrap();
     let insert_index = rng.gen_range(0 .. (incumbent.milestones.len() + 1)); // +1 because can add at end of vec
 
     let mut strategy = incumbent.clone(id);
@@ -196,10 +205,18 @@ fn insert_attack(id: i32, world: &World, incumbent: &Strategy, rng: &mut rand::p
 }
 
 fn insert_defend(id: i32, world: &World, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
-    let num_humans = world.humans.len();
-    if num_humans == 0 { return None }
+    if world.humans.len() == 0 { return None }
 
-    let human_id = world.humans.values().nth(rng.gen_range(0..num_humans)).unwrap().id;
+    let mut human_ids = world.humans.keys().map(|k| *k).collect::<HashSet<i32>>();
+    for milestone in incumbent.milestones.iter() { // Remove human IDs that we're already defending
+        match milestone {
+            Milestone::ProtectHuman { human_id } => { human_ids.remove(human_id); },
+            _ => (),
+        }
+    }
+    if human_ids.len() == 0 { return None }
+
+    let human_id = *human_ids.iter().nth(rng.gen_range(0..human_ids.len())).unwrap();
     let insert_index = rng.gen_range(0 .. (incumbent.milestones.len() + 1)); // +1 because can add at end of vec
 
     let mut strategy = incumbent.clone(id);
