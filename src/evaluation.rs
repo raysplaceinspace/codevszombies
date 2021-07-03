@@ -24,11 +24,12 @@ impl ScoreAccumulator {
                 Event::ZombieKilled { score, .. } => {
                     self.total_score += score;
                 },
-                Event::Ending { won, tick, .. } => {
+                Event::Won{ tick, .. } => {
                     self.total_score += POINTS_PER_TICK * (*tick as f32);
-                    if !won {
-                        self.total_score += LOSS_POINTS;
-                    }
+                },
+                Event::Lost{ tick, .. } => {
+                    self.total_score += POINTS_PER_TICK * (*tick as f32);
+                    self.total_score += LOSS_POINTS;
                 },
                 _ => (),
             }

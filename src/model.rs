@@ -74,5 +74,16 @@ impl Strategy {
 pub enum Event {
     ZombieKilled { tick: i32, zombie_id: i32, score: f32 },
     HumanKilled { tick: i32, human_id: i32 },
-    Ending { tick: i32, won: bool }
+    Won { tick: i32, num_humans: usize },
+    Lost { tick: i32, num_zombies: usize },
+}
+
+impl Event {
+    pub fn is_ending(&self) -> bool {
+        match &self {
+            Event::Won{..} => true,
+            Event::Lost{..} => true,
+            _ => false,
+        }
+    }
 }

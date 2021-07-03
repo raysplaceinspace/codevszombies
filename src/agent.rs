@@ -288,12 +288,7 @@ fn rollout(strategy: &Strategy, initial: &World, best_score: f32) -> Rollout {
         let tick_events = simulator::next(&mut world, &action);
         score_accumulator.accumulate(&tick_events);
 
-        let is_finished = tick_events.iter().any(
-            |event| match event {
-                Event::Ending { .. } => true,
-                _ => false
-            }
-        );
+        let is_finished = tick_events.iter().any(|event| event.is_ending());
         events.extend(tick_events.into_iter());
 
         if is_finished { break; }

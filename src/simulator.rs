@@ -116,8 +116,8 @@ fn is_over(world: &World) -> bool {
 
 fn emit_ending(world: &mut World, events: &mut Vec<Event>) {
     if world.humans.len() == 0 {
-        events.push(Event::Ending { tick: world.tick, won: false });
+        events.push(Event::Lost { tick: world.tick, num_zombies: world.zombies.len() });
     } else if world.zombies.len() == 0 {
-        events.push(Event::Ending { tick: world.tick, won: true });
+        events.push(Event::Won{ tick: world.tick, num_humans: world.humans.len() });
     }
 }
