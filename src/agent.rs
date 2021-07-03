@@ -206,21 +206,14 @@ fn insert_attack(id: i32, world: &World, incumbent: &Strategy, rng: &mut rand::p
 fn insert_defend(id: i32, world: &World, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
     if world.humans.len() == 0 { return None }
 
-    let mut human_ids = world.humans.keys().map(|k| *k).collect::<HashSet<i32>>();
-    for milestone in incumbent.milestones.iter() { // Remove human IDs that we're already defending
-        match milestone {
-            Milestone::ProtectHuman { human_id } => { human_ids.remove(human_id); },
-            _ => (),
-        }
-    }
-    if human_ids.len() == 0 { return None }
+    let human_index = rng.gen_range(0..world.humans.len());
+    let human = world.humans.values().nth(human_index).unwrap();
 
-    let human_id = *human_ids.iter().nth(rng.gen_range(0..human_ids.len())).unwrap();
     let insert_index = rng.gen_range(0 .. (incumbent.milestones.len() + 1)); // +1 because can add at end of vec
 
     let mut strategy = incumbent.clone(id);
-    strategy.milestones.insert(insert_index, Milestone::ProtectHuman{
-        human_id,
+    strategy.milestones.insert(insert_index, Milestone::MoveTo{
+        target: human.pos,
     });
     Some(strategy)
 }
