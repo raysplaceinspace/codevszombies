@@ -13,6 +13,7 @@ pub fn format_strategy(strategy: &Strategy) -> String {
     for milestone in strategy.milestones.iter() {
         match milestone {
             Milestone::KillZombie { zombie_id } => { write!(result, "z{} ", zombie_id).unwrap(); },
+            Milestone::ProtectHuman { human_id } => { write!(result, "h{} ", human_id).unwrap(); },
             Milestone::MoveTo { target } => { write!(result, "({:.0},{:.0}) ", target.x, target.y).unwrap(); },
         }
     }

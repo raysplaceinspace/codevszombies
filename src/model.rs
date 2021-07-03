@@ -39,15 +39,13 @@ pub struct Action {
 #[derive(Clone)]
 pub enum Milestone {
     KillZombie { zombie_id: i32 },
+    ProtectHuman { human_id: i32 },
     MoveTo { target: V2 },
 }
 
 impl Milestone {
     pub fn is_move(&self) -> bool {
         match self { Milestone::MoveTo{..} => true, _ => false }
-    }
-    pub fn is_kill_zombie(&self) -> bool {
-        match self { Milestone::KillZombie{..} => true, _ => false }
     }
 }
 

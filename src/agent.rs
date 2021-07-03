@@ -15,7 +15,8 @@ const MAX_STRATEGY_GENERATION_MILLISECONDS: u128 = 90;
 const REPLACE_MOVE_PROPORTION: f32 = 0.5;
 const BUMP_MOVE_PROPORTION: f32 = 0.25;
 
-const ATTACK_ZOMBIE_PROPORTION: f32 = 0.05;
+const ATTACK_ZOMBIE_PROPORTION: f32 = 0.1;
+const PROTECT_HUMAN_PROPORTION: f32 = 0.1;
 const DROP_PROPORTION: f32 = 0.05;
 
 const BUBBLE_PROPORTION: f32 = 0.1;
@@ -97,6 +98,7 @@ fn generate_strategy(id: i32, best_strategy: &Strategy, world: &World, rng: &mut
     if strategy.is_none() && rng.gen::<f32>() < DROP_PROPORTION { strategy = drop_element(id, best_strategy, rng); }
 
     if strategy.is_none() && rng.gen::<f32>() < ATTACK_ZOMBIE_PROPORTION { strategy = insert_attack(id, world, best_strategy, rng); }
+    if strategy.is_none() && rng.gen::<f32>() < PROTECT_HUMAN_PROPORTION { strategy = insert_defend(id, world, best_strategy, rng); }
 
     if strategy.is_none() && rng.gen::<f32>() < BUBBLE_PROPORTION { strategy = bubble_elements(id, best_strategy, rng); }
     if strategy.is_none() && rng.gen::<f32>() < SWAP_PROPORTION { strategy = swap_elements(id, best_strategy, rng); }
@@ -188,6 +190,20 @@ fn insert_attack(id: i32, world: &World, incumbent: &Strategy, rng: &mut rand::p
     let mut strategy = incumbent.clone(id);
     strategy.milestones.insert(insert_index, Milestone::KillZombie {
         zombie_id,
+    });
+    Some(strategy)
+}
+
+fn insert_defend(id: i32, world: &World, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+    let num_humans = world.humans.len();
+    if num_humans == 0 { return None }
+
+    let human_id = world.humans.values().nth(rng.gen_range(0..num_humans)).unwrap().id;
+    let insert_index = rng.gen_range(0 .. (incumbent.milestones.len() + 1)); // +1 because can add at end of vec
+
+    let mut strategy = incumbent.clone(id);
+    strategy.milestones.insert(insert_index, Milestone::ProtectHuman{
+        human_id,
     });
     Some(strategy)
 }
@@ -304,6 +320,7 @@ mod actions {
     pub fn from_milestone(milestone: &Milestone, world: &World) -> Option<Action> {
         match milestone {
             Milestone::KillZombie { zombie_id } => kill_zombie_to_action(*zombie_id, world),
+            Milestone::ProtectHuman { human_id } => protect_human_to_action(*human_id, world),
             Milestone::MoveTo { target } => move_to_action(*target, world),
         }
     }
@@ -311,6 +328,22 @@ mod actions {
     fn kill_zombie_to_action(zombie_id: i32, world: &World) -> Option<Action> {
         match world.zombies.get(&zombie_id) {
             Some(zombie) => Some(Action { target: zombie.next }),
+            None => None,
+        }
+    }
+
+    fn protect_human_to_action(human_id: i32, world: &World) -> Option<Action> {
+        const PRECISION: f32 = 1.0;
+
+        match world.humans.get(&human_id) {
+            Some(human) => {
+                let distance = world.pos.distance_to(human.pos);
+                if distance < PRECISION {
+                    None // Already at human, stop and move to next milestone
+                } else {
+                    Some(Action { target: human.pos })
+                }
+            },
             None => None,
         }
     }
