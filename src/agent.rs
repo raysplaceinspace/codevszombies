@@ -4,21 +4,22 @@ use std::time::Instant;
 use rand;
 use rand::Rng;
 use super::evaluation;
+use super::evaluation::ScoreParams;
 use super::mutations;
 use super::rollouts;
 use super::rollouts::{Rollout, WorldState};
 
 const MAX_STRATEGY_GENERATION_MILLISECONDS: u128 = 90;
 
-const MUTATE_PROPORTION: f32 = 0.75;
-const MAX_MUTATIONS: i32 = 1;
-const MUTATION_REPEAT_PROBABILITY: f32 = 0.1;
+const NUM_POOL_ENTRIES: usize = 10;
+const MUTATE_PROPORTION: f32 = 0.5;
 
 const MAX_MOVES_FROM_SCRATCH: i32 = 1;
 
 struct StrategyPoolEntry {
     strategy: Strategy,
     score: f32,
+    actual: f32,
     ending: WorldState,
 }
 
@@ -27,6 +28,7 @@ impl StrategyPoolEntry {
         StrategyPoolEntry {
             strategy: rollout.strategy.clone(),
             score,
+            actual: rollout.scores[0],
             ending: rollout.ending.clone(),
         }
     }
@@ -37,13 +39,10 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
 
     let mut strategy_id = 0;
 
-    let score_sheet = vec![
-        evaluation::ScoreParams::official(),
-        evaluation::ScoreParams::gen(&mut rng),
-        evaluation::ScoreParams::gen(&mut rng),
-        evaluation::ScoreParams::gen(&mut rng),
-        evaluation::ScoreParams::gen(&mut rng),
-    ];
+    let mut score_sheet = vec![ScoreParams::official()];
+    for _ in 0..NUM_POOL_ENTRIES {
+        score_sheet.push(evaluation::ScoreParams::gen(&mut rng));
+    }
 
     let mut best_rollout = rollouts::rollout(previous_strategy.seed(strategy_id), world, &score_sheet);
     let mut pool = best_rollout.scores.iter().map(|score| StrategyPoolEntry::from(&best_rollout, *score)).collect::<Vec<_>>();
@@ -77,7 +76,7 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
 
     eprintln!("Optimized score (after {} generations): {} -> {}", strategy_id, initial_scores[0], best_rollout.scores[0]);
     for i in 0..score_sheet.len() {
-        eprintln!(" #{}: {} -> {} [{}] (h={}, z={})", i, initial_scores[i], pool[i].score, pool[i].strategy.id, pool[i].ending.num_humans, pool[i].ending.num_zombies);
+        eprintln!(" #[{}]: {} -> {} ({}) (h={}, z={})", pool[i].strategy.id, initial_scores[i], pool[i].score, pool[i].actual, pool[i].ending.num_humans, pool[i].ending.num_zombies);
     }
 
     eprintln!("Tick {}: chosen strategy rolled out to tick {}", world.tick, best_rollout.ending.tick);
@@ -93,16 +92,7 @@ fn generate_strategy(id: i32, incumbent: &Strategy, world: &World, rng: &mut ran
 
     if rng.gen::<f32>() < MUTATE_PROPORTION {
         let mut candidate = incumbent.seed(id);
-        let mut mutated = false;
-        for _ in 0..MAX_MUTATIONS {
-            mutated |= mutations::mutate_strategy(&mut candidate, world, rng);
-
-            if rng.gen::<f32>() < MUTATION_REPEAT_PROBABILITY {
-                continue;
-            } else {
-                break;
-            }
-        }
+        let mutated = mutations::mutate_strategy(&mut candidate, world, rng);
 
         if mutated {
             strategy = Some(candidate);
