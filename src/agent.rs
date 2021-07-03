@@ -20,7 +20,7 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
     let mut strategy_id = 0;
 
     let mut best_strategy = previous_strategy.clone(strategy_id);
-    let mut best_strategy_result = rollouts::rollout(&best_strategy, world, f32::NEG_INFINITY);
+    let mut best_strategy_result = rollouts::rollout(&best_strategy, world);
 
     let initial_strategy_score = best_strategy_result.score;
 
@@ -29,7 +29,7 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
         strategy_id += 1;
 
         let strategy = generate_strategy(strategy_id, &best_strategy, world, &mut rng);
-        let rollout_result = rollouts::rollout(&strategy, world, best_strategy_result.score);
+        let rollout_result = rollouts::rollout(&strategy, world);
         if rollout_result.score > best_strategy_result.score {
             best_strategy_result = rollout_result;
             best_strategy = strategy;

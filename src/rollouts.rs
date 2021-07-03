@@ -41,7 +41,7 @@ impl ActionEmitter<'_> {
 }
 
 
-pub fn rollout(strategy: &Strategy, initial: &World, best_score: f32) -> Rollout {
+pub fn rollout(strategy: &Strategy, initial: &World) -> Rollout {
     let mut world = initial.clone();
     let mut events = Vec::<Event>::new();
 
@@ -59,8 +59,6 @@ pub fn rollout(strategy: &Strategy, initial: &World, best_score: f32) -> Rollout
         events.extend(tick_events.into_iter());
 
         if is_finished { break; }
-
-        if score_accumulator.upper_bound(&world) < best_score { break; }
     }
 
     Rollout {
