@@ -37,7 +37,6 @@ impl ScoreAccumulator {
                     self.total_score += POINTS_PER_TICK * (*tick as f32);
                     self.total_score += POINTS_PER_ZOMBIE * (*num_zombies as f32);
                 },
-                _ => (),
             }
         }
     }
