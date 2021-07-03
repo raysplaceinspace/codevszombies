@@ -3,7 +3,7 @@ use super::simulator;
 
 const LOSS_POINTS: f32 = -10000.0;
 const POINTS_PER_TICK: f32 = -0.01;
-const POINTS_PER_MILESTONE: f32 = -0.01;
+const POINTS_PER_MILESTONE: f32 = -0.001;
 
 pub struct ScoreAccumulator {
     pub total_score: f32,
