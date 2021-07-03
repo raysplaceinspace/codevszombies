@@ -4,7 +4,6 @@ use std::time::Instant;
 use rand;
 use rand::Rng;
 use rand::prelude::ThreadRng;
-use super::evaluation;
 use super::evaluation::ScoreParams;
 use super::mutations;
 use super::rollouts;
@@ -17,15 +16,15 @@ const MUTATE_PROPORTION: f32 = 0.5;
 
 const MAX_MOVES_FROM_SCRATCH: i32 = 1;
 
-struct StrategyPool {
+struct StrategyPool<'a> {
     strategy_id: i32,
-    score_sheet: Vec<ScoreParams>,
+    score_sheet: &'a Vec<ScoreParams>,
     best: Rollout,
     entries: Vec<StrategyPoolEntry>,
 }
 
-impl StrategyPool {
-    fn new(world: &World, score_sheet: Vec<ScoreParams>) -> StrategyPool {
+impl StrategyPool<'_> {
+    fn new<'a>(world: &World, score_sheet: &'a Vec<ScoreParams>) -> StrategyPool<'a> {
         let mut strategy_id = 0;
         let rollout = rollouts::rollout(Strategy::new(strategy_id), world, &score_sheet);
         strategy_id += 1;
@@ -99,15 +98,8 @@ impl StrategyPoolEntry {
     }
 }
 
-pub fn choose(world: &World, previous_strategies: Vec<Strategy>) -> Vec<Strategy> {
-    let mut rng = rand::thread_rng();
-
+pub fn choose(world: &World, score_sheet: &Vec<ScoreParams>, previous_strategies: Vec<Strategy>, rng: &mut ThreadRng) -> Vec<Strategy> {
     let mut strategy_id = 0;
-
-    let mut score_sheet = vec![ScoreParams::official()];
-    for _ in 0..NUM_POOL_ENTRIES {
-        score_sheet.push(evaluation::ScoreParams::gen(&mut rng));
-    }
 
     let mut pool = StrategyPool::new(world, score_sheet);
     pool.import(previous_strategies, world);
@@ -118,8 +110,8 @@ pub fn choose(world: &World, previous_strategies: Vec<Strategy>) -> Vec<Strategy
     while start.elapsed().as_millis() < MAX_STRATEGY_GENERATION_MILLISECONDS {
         strategy_id += 1;
 
-        let initial_strategy = pool.gen(&mut rng);
-        let strategy = generate_strategy(strategy_id, &initial_strategy, world, &mut rng);
+        let initial_strategy = pool.gen(rng);
+        let strategy = generate_strategy(strategy_id, &initial_strategy, world, rng);
         pool.accept(strategy, world);
     }
 

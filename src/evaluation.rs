@@ -2,8 +2,9 @@ pub use super::model::*;
 
 use rand;
 use rand::Rng;
+use rand::prelude::ThreadRng;
 
-const MAX_DISCOUNT_RANGE: f32 = 0.1;
+const SCORE_SHEET_SIZE: i32 = 10;
 
 const WON_POINTS: f32 = 0.0;
 const LOSS_POINTS: f32 = -10000.0;
@@ -25,11 +26,21 @@ impl ScoreParams {
         }
     }
 
-    pub fn gen(rng: &mut rand::prelude::ThreadRng) -> ScoreParams {
+    pub fn gen(rng: &mut ThreadRng) -> ScoreParams {
         ScoreParams {
             kill_zombies_multiplier: rng.gen::<f32>(),
             save_humans_multiplier: rng.gen::<f32>(),
         }
+    }
+
+    pub fn gen_sheet(rng: &mut ThreadRng) -> Vec<ScoreParams> {
+        let mut score_sheet = vec![ScoreParams::official()];
+
+        for _ in 0..SCORE_SHEET_SIZE {
+            score_sheet.push(ScoreParams::gen(rng));
+        }
+
+        score_sheet
     }
 }
 
