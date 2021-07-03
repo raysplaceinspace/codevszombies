@@ -149,21 +149,21 @@ fn bump_strategy(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadR
 fn bubble_strategy(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
     if incumbent.milestones.len() < 2 { return None }
 
-    let mut strategy = incumbent.clone(id);
-    let bubble_index = rng.gen_range(0..(incumbent.milestones.len() - 1));
+    let mut strategy = incumbent.clone(id); let bubble_index = rng.gen_range(0..(incumbent.milestones.len() - 1));
     strategy.milestones.swap(bubble_index, bubble_index + 1);
     Some(strategy)
 }
 
 fn displace_strategy(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
     const MAX_DISPLACE_LENGTH: usize = 8;
+    const DISPLACE_LENGTH_POWER: f32 = 2.0;
 
     if incumbent.milestones.len() < 2 { return None }
 
     let mut strategy = incumbent.clone(id);
 
     let displace_from_index = rng.gen_range(0 .. incumbent.milestones.len());
-    let displace_length = 1 + rng.gen_range(0 .. cmp::min(MAX_DISPLACE_LENGTH, incumbent.milestones.len() - displace_from_index));
+    let displace_length = (1.0 + rng.gen::<f32>().powf(DISPLACE_LENGTH_POWER) * cmp::min(MAX_DISPLACE_LENGTH, incumbent.milestones.len() - displace_from_index) as f32).floor() as usize;
     let displaced = strategy.milestones.drain(displace_from_index .. (displace_from_index + displace_length)).collect::<Vec<Milestone>>();
 
     let displace_to_index = rng.gen_range(0 .. (strategy.milestones.len() + 1)); // +1 because can displace to after the end as well
