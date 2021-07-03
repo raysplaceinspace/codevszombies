@@ -13,6 +13,7 @@ const MAX_STRATEGY_GENERATION_MILLISECONDS: u128 = 80;
 const GENERATE_MOVE_PROBABILITY: f32 = 0.5;
 const BUMP_PROPORTION: f32 = 0.25;
 const BUBBLE_PROPORTION: f32 = 0.1;
+const SWAP_PROPORTION: f32 = 0.1;
 const DISPLACE_PROPORTION: f32 = 0.2;
 const REVERSE_PROPORTION: f32 = 0.05;
 
@@ -80,8 +81,9 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
 fn generate_strategy(id: i32, best_strategy: &Strategy, world: &World, rng: &mut rand::prelude::ThreadRng) -> Strategy {
     let mut strategy: Option<Strategy> = None;
 
-    if strategy.is_none() && rng.gen::<f32>() < BUMP_PROPORTION { strategy = bump_strategy(id, best_strategy, rng); }
-    if strategy.is_none() && rng.gen::<f32>() < BUBBLE_PROPORTION { strategy = bubble_strategy(id, best_strategy, rng); }
+    if strategy.is_none() && rng.gen::<f32>() < BUMP_PROPORTION { strategy = bump_elements(id, best_strategy, rng); }
+    if strategy.is_none() && rng.gen::<f32>() < BUBBLE_PROPORTION { strategy = bubble_elements(id, best_strategy, rng); }
+    if strategy.is_none() && rng.gen::<f32>() < SWAP_PROPORTION { strategy = swap_elements(id, best_strategy, rng); }
     if strategy.is_none() && rng.gen::<f32>() < DISPLACE_PROPORTION { strategy = displace_section(id, best_strategy, rng); }
     if strategy.is_none() && rng.gen::<f32>() < REVERSE_PROPORTION { strategy = reverse_section(id, best_strategy, rng); }
 
@@ -111,7 +113,7 @@ fn generate_strategy_from_scratch(id: i32, world: &World, rng: &mut rand::prelud
     strategy
 }
 
-fn bump_strategy(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+fn bump_elements(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
     const MUTATE_RADIUS: f32 = constants::MAX_ASH_STEP + 1.0;
 
     let num_move_milestones =
@@ -148,11 +150,28 @@ fn bump_strategy(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadR
     Some(strategy)
 }
 
-fn bubble_strategy(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+fn bubble_elements(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
     if incumbent.milestones.len() < 2 { return None }
 
-    let mut strategy = incumbent.clone(id); let bubble_index = rng.gen_range(0..(incumbent.milestones.len() - 1));
+    let mut strategy = incumbent.clone(id);
+    let bubble_index = rng.gen_range(0..(incumbent.milestones.len() - 1));
     strategy.milestones.swap(bubble_index, bubble_index + 1);
+    Some(strategy)
+}
+
+fn swap_elements(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+    if incumbent.milestones.len() < 2 { return None }
+
+    let mut strategy = incumbent.clone(id);
+
+    let from_index = rng.gen_range(0..(incumbent.milestones.len() - 1));
+    let mut to_index = rng.gen_range(0..(incumbent.milestones.len() - 1));
+    if from_index == to_index {
+        to_index += 1;
+    }
+
+    strategy.milestones.swap(from_index, to_index);
+
     Some(strategy)
 }
 
