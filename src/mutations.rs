@@ -8,6 +8,7 @@ use rand::Rng;
 
 const REPLACE_MOVE_PROPORTION: f32 = 0.5;
 const BUMP_MOVE_PROPORTION: f32 = 0.25;
+const JITTER_MOVE_PROPORTION: f32 = 0.1;
 
 const ATTACK_ZOMBIE_PROPORTION: f32 = 0.1;
 const PROTECT_HUMAN_PROPORTION: f32 = 0.1;
@@ -21,6 +22,7 @@ pub fn mutate_strategy(strategy: &mut Strategy, world: &World, rng: &mut rand::p
     let mut mutated = false;
 
     if !mutated && rng.gen::<f32>() < BUMP_MOVE_PROPORTION { mutated = bump_move(strategy, rng); }
+    if !mutated && rng.gen::<f32>() < JITTER_MOVE_PROPORTION { mutated = jitter_move(strategy, rng); }
     if !mutated && rng.gen::<f32>() < REPLACE_MOVE_PROPORTION { mutated = replace_move(strategy, rng); }
 
     if !mutated && rng.gen::<f32>() < DROP_PROPORTION { mutated = drop_element(strategy, rng); }
@@ -48,6 +50,28 @@ fn bump_move(strategy: &mut Strategy, rng: &mut rand::prelude::ThreadRng) -> boo
                             y: clamp(previous.y + rng.gen_range(-MUTATE_RADIUS..MUTATE_RADIUS), 0.0, constants::MAP_HEIGHT as f32),
                         },
                     }
+                },
+                _ => {},
+            };
+            true
+        },
+        None => false,
+    }
+}
+
+fn jitter_move(strategy: &mut Strategy, rng: &mut rand::prelude::ThreadRng) -> bool {
+    const MUTATE_RADIUS: f32 = constants::MAX_ASH_STEP;
+
+    match choose_move_index(strategy, rng) {
+        Some(move_index) => {
+            match strategy.milestones[move_index] {
+                Milestone::MoveTo { target: previous } => {
+                    strategy.milestones.insert(move_index, Milestone::MoveTo {
+                        target: V2 {
+                            x: clamp(previous.x + rng.gen_range(-MUTATE_RADIUS..MUTATE_RADIUS), 0.0, constants::MAP_WIDTH as f32),
+                            y: clamp(previous.y + rng.gen_range(-MUTATE_RADIUS..MUTATE_RADIUS), 0.0, constants::MAP_HEIGHT as f32),
+                        },
+                    });
                 },
                 _ => {},
             };
