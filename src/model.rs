@@ -42,6 +42,15 @@ pub enum Milestone {
     MoveTo { target: V2 },
 }
 
+impl Milestone {
+    pub fn is_move(&self) -> bool {
+        match self { Milestone::MoveTo{..} => true, _ => false }
+    }
+    pub fn is_kill_zombie(&self) -> bool {
+        match self { Milestone::KillZombie{..} => true, _ => false }
+    }
+}
+
 pub struct Strategy {
     pub id: i32,
     pub milestones: Vec<Milestone>,

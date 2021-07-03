@@ -11,7 +11,10 @@ use super::formatter;
 
 const MAX_ROLLOUT_TICKS: i32 = 50;
 const MAX_STRATEGY_GENERATION_MILLISECONDS: u128 = 80;
-const GENERATE_MOVE_PROBABILITY: f32 = 0.5;
+
+const INSERT_MOVE_PROPORTION: f32 = 0.5;
+const DROP_MOVE_PROPORTION: f32 = 0.1;
+
 const BUMP_PROPORTION: f32 = 0.25;
 const BUBBLE_PROPORTION: f32 = 0.1;
 const SWAP_PROPORTION: f32 = 0.1;
@@ -82,7 +85,10 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
 fn generate_strategy(id: i32, best_strategy: &Strategy, world: &World, rng: &mut rand::prelude::ThreadRng) -> Strategy {
     let mut strategy: Option<Strategy> = None;
 
+    if strategy.is_none() && rng.gen::<f32>() < INSERT_MOVE_PROPORTION { strategy = insert_move(id, best_strategy, rng); }
+    if strategy.is_none() && rng.gen::<f32>() < DROP_MOVE_PROPORTION { strategy = drop_move(id, best_strategy, rng); }
     if strategy.is_none() && rng.gen::<f32>() < BUMP_PROPORTION { strategy = bump_elements(id, best_strategy, rng); }
+
     if strategy.is_none() && rng.gen::<f32>() < BUBBLE_PROPORTION { strategy = bubble_elements(id, best_strategy, rng); }
     if strategy.is_none() && rng.gen::<f32>() < SWAP_PROPORTION { strategy = swap_elements(id, best_strategy, rng); }
     if strategy.is_none() && rng.gen::<f32>() < DISPLACE_PROPORTION { strategy = displace_section(id, best_strategy, rng); }
@@ -97,14 +103,6 @@ fn generate_strategy(id: i32, best_strategy: &Strategy, world: &World, rng: &mut
 fn generate_strategy_from_scratch(id: i32, world: &World, rng: &mut rand::prelude::ThreadRng) -> Strategy {
     let mut strategy = Strategy::new(id);
 
-    if rng.gen::<f32>() < GENERATE_MOVE_PROBABILITY {
-        let target = V2 {
-            x: rng.gen_range(0..constants::MAP_WIDTH) as f32,
-            y: rng.gen_range(0..constants::MAP_HEIGHT) as f32,
-        };
-        strategy.milestones.push(Milestone::MoveTo { target });
-    }
-
     let mut remaining_zombie_ids = world.zombies.values().map(|zombie| zombie.id).collect::<Vec<i32>>();
     while remaining_zombie_ids.len() > 0 {
         let zombie_id = remaining_zombie_ids.remove(rng.gen_range(0..remaining_zombie_ids.len()));
@@ -117,38 +115,64 @@ fn generate_strategy_from_scratch(id: i32, world: &World, rng: &mut rand::prelud
 fn bump_elements(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
     const MUTATE_RADIUS: f32 = constants::MAX_ASH_STEP + 1.0;
 
-    let num_move_milestones =
-        incumbent.milestones.iter()
-        .filter(|milestone| match milestone { Milestone::MoveTo{..} => true, _ => false })
-        .count();
-    if num_move_milestones == 0 { return None }
-
-    let target_move_milestone_index = rng.gen_range(0..num_move_milestones); // Only modify this MoveTo milestone, no others
-    let mut move_milestone_index = 0 as usize;
-
-    let mut strategy = Strategy::new(id);
-    strategy.milestones.extend(incumbent.milestones.iter().map(|milestone| {
-        match milestone {
-            Milestone::MoveTo { target } => {
-                let result: Milestone;
-                if move_milestone_index == target_move_milestone_index {
-                    result = Milestone::MoveTo {
+    match choose_move_index(incumbent, rng) {
+        Some(move_index) => {
+            let mut strategy = incumbent.clone(id);
+            match strategy.milestones[move_index] {
+                Milestone::MoveTo { target: previous } => {
+                    strategy.milestones[move_index] = Milestone::MoveTo {
                         target: V2 {
-                            x: clamp(target.x + rng.gen_range(-MUTATE_RADIUS..MUTATE_RADIUS) as f32, 0.0, constants::MAP_WIDTH as f32),
-                            y: clamp(target.y + rng.gen_range(-MUTATE_RADIUS..MUTATE_RADIUS) as f32, 0.0, constants::MAP_HEIGHT as f32),
+                            x: clamp(previous.x + rng.gen_range(-MUTATE_RADIUS..MUTATE_RADIUS) as f32, 0.0, constants::MAP_WIDTH as f32),
+                            y: clamp(previous.y + rng.gen_range(-MUTATE_RADIUS..MUTATE_RADIUS) as f32, 0.0, constants::MAP_HEIGHT as f32),
                         },
                     }
-                } else {
-                    result = milestone.clone();
-                }
-                move_milestone_index += 1;
-                result
-            },
-            _ => milestone.clone(),
-        }
-    }));
+                },
+                _ => {},
+            };
 
+            Some(strategy)
+        },
+        None => None,
+    }
+}
+
+fn insert_move(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+    let mut strategy = incumbent.clone(id);
+    strategy.milestones.insert(0, Milestone::MoveTo {
+        target: V2 {
+            x: rng.gen_range(0..constants::MAP_WIDTH) as f32,
+            y: rng.gen_range(0..constants::MAP_HEIGHT) as f32,
+        },
+    });
     Some(strategy)
+}
+fn drop_move(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
+    match choose_move_index(incumbent, rng) {
+        Some(move_index) => {
+            let mut strategy = incumbent.clone(id);
+            strategy.milestones.remove(move_index);
+            Some(strategy)
+        },
+        None => None,
+    }
+}
+
+fn choose_move_index(strategy: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<usize> {
+    let num_moves = strategy.milestones.iter().filter(|m| m.is_move()).count();
+    if num_moves == 0 { return None }
+
+    let target_move_ordinal = rng.gen_range(0 .. num_moves);
+    let mut current_move_ordinal = 0;
+    for (i, milestone) in strategy.milestones.iter().enumerate() {
+        if milestone.is_move() {
+            if current_move_ordinal == target_move_ordinal {
+                return Some(i);
+            }
+            current_move_ordinal += 1;
+        }
+    }
+
+    None
 }
 
 fn bubble_elements(id: i32, incumbent: &Strategy, rng: &mut rand::prelude::ThreadRng) -> Option<Strategy> {
@@ -221,6 +245,9 @@ fn rollout(strategy: &Strategy, initial: &World, best_score: f32) -> Rollout {
 
     let mut score_accumulator = evaluation::ScoreAccumulator::new();
     let mut action_emitter = ActionEmitter::new(strategy);
+
+    score_accumulator.evaluate_strategy(&strategy);
+
     for _ in 0..MAX_ROLLOUT_TICKS {
         let action = action_emitter.next(&world);
         let tick_events = simulator::next(&mut world, &action);

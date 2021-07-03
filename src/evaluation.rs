@@ -3,6 +3,7 @@ use super::simulator;
 
 const LOSS_POINTS: f32 = -10000.0;
 const POINTS_PER_TICK: f32 = -0.01;
+const POINTS_PER_MILESTONE: f32 = -0.01;
 
 pub struct ScoreAccumulator {
     pub total_score: f32,
@@ -11,6 +12,10 @@ pub struct ScoreAccumulator {
 impl ScoreAccumulator {
     pub fn new() -> ScoreAccumulator {
         ScoreAccumulator { total_score: 0.0 }
+    }
+
+    pub fn evaluate_strategy(&mut self, strategy: &Strategy) {
+        self.total_score += POINTS_PER_MILESTONE * strategy.milestones.len() as f32;
     }
 
     pub fn accumulate(&mut self, events: &Vec<Event>) {
