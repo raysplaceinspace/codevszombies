@@ -62,7 +62,9 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
 
     let mut strategy_id = 0;
     let mut best_strategy = previous_strategy.clone(strategy_id);
-    let mut best_strategy_result = rollout(&best_strategy, world, f32::INFINITY);
+    let mut best_strategy_result = rollout(&best_strategy, world, f32::NEG_INFINITY);
+
+    let initial_strategy_score = best_strategy_result.score;
 
     let start = Instant::now();
     while start.elapsed().as_millis() < MAX_STRATEGY_GENERATION_MILLISECONDS {
@@ -76,7 +78,10 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
         }
     }
 
-    eprintln!("Chosen strategy (after {} generations): {} -> {}", strategy_id, formatter::format_strategy(&best_strategy), best_strategy_result.score);
+    eprintln!("Chosen strategy: {}", formatter::format_strategy(&best_strategy));
+    eprintln!("Chosen generation {} after {} total generations", best_strategy.id, strategy_id);
+    eprintln!("Optimized score (after {} generations): {} -> {}", strategy_id, initial_strategy_score, best_strategy_result.score);
+
     for event in best_strategy_result.events.iter() {
         eprintln!(" {}", formatter::format_event(event));
     }
