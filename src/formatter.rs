@@ -1,31 +1,45 @@
-use std::fmt::Write;
+use std::fmt;
 use super::model::*;
 
-pub fn format_action(action: &Action) -> String {
-    format!("{:.0} {:.0}", action.target.x, action.target.y)
+impl fmt::Display for Action {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:.0} {:.0}", self.target.x, self.target.y)
+    }
 }
 
-pub fn format_strategy(strategy: &Strategy) -> String {
-    let mut result = String::new();
-
-    write!(result, "[{}]: ", strategy.id).unwrap();
-
-    for milestone in strategy.milestones.iter() {
-        match milestone {
-            Milestone::KillZombie { zombie_id } => { write!(result, "z{} ", zombie_id).unwrap(); },
-            Milestone::ProtectHuman { human_id } => { write!(result, "h{} ", human_id).unwrap(); },
-            Milestone::MoveTo { target } => { write!(result, "({:.0},{:.0}) ", target.x, target.y).unwrap(); },
+impl fmt::Display for Milestone {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self {
+            Milestone::KillZombie { zombie_id } => { write!(f, "z{} ", zombie_id) },
+            Milestone::ProtectHuman { human_id } => { write!(f, "h{} ", human_id) },
+            Milestone::MoveTo { target } => { write!(f, "({:.0},{:.0}) ", target.x, target.y) },
         }
     }
-
-    result
 }
 
-pub fn format_event(event: &Event) -> String {
-    match event {
-        Event::ZombieKilled { tick, zombie_id, score, .. } => format!("{}> zombie {} killed, +{}", tick, zombie_id, score),
-        Event::HumanKilled { tick, human_id, .. } => format!("{}> human {} killed", tick, human_id),
-        Event::Won { tick, num_humans, .. } => format!("{}> won - {} humans remain", tick, num_humans),
-        Event::Lost { tick, num_zombies, .. } => format!("{}> lost {} zombies remain", tick, num_zombies),
+impl fmt::Display for Strategy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[{}]", self.id);
+
+        for milestone in self.milestones.iter() {
+            match milestone {
+                Milestone::KillZombie { zombie_id } => { write!(f, "z{} ", zombie_id).unwrap(); },
+                Milestone::ProtectHuman { human_id } => { write!(f, "h{} ", human_id).unwrap(); },
+                Milestone::MoveTo { target } => { write!(f, "({:.0},{:.0}) ", target.x, target.y).unwrap(); },
+            }
+        }
+
+        write!(f, "") // TODO: Return the right value without doing this
+    }
+}
+
+impl fmt::Display for Event {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self {
+            Event::ZombieKilled { tick, zombie_id, score, .. } => write!(f, "{}> zombie {} killed, +{}", tick, zombie_id, score),
+            Event::HumanKilled { tick, human_id, .. } => write!(f, "{}> human {} killed", tick, human_id),
+            Event::Won { tick, num_humans, .. } => write!(f, "{}> won - {} humans remain", tick, num_humans),
+            Event::Lost { tick, num_zombies, .. } => write!(f, "{}> lost {} zombies remain", tick, num_zombies),
+        }
     }
 }

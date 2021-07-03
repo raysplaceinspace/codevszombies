@@ -80,12 +80,12 @@ pub fn choose(world: &World, previous_strategy: &Strategy) -> Strategy {
     }
 
     eprintln!("Chosen generation {} after {} total generations", best_strategy.id, strategy_id);
-    eprintln!("Chosen strategy: {}", formatter::format_strategy(&best_strategy));
+    eprintln!("Chosen strategy: {}", &best_strategy);
     eprintln!("Tick {}: chosen strategy rolled out to tick {}", world.tick, best_strategy_result.final_tick);
     eprintln!("Optimized score (after {} generations): {} -> {}", strategy_id, initial_strategy_score, best_strategy_result.score);
 
     for event in best_strategy_result.events.iter() {
-        eprintln!(" {}", formatter::format_event(event));
+        eprintln!(" {}", event);
     }
     
     best_strategy

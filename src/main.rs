@@ -29,7 +29,7 @@ fn main() {
         // Write an action using println!("message...");
         // To debug: eprintln!("Debug message...");
 
-        println!("{}", formatter::format_action(&action)); // Your destination coordinates
+        println!("{}", &action); // Your destination coordinates
 
         verifier.log_prediction_error(&world);
 
