@@ -8,7 +8,6 @@ use rand;
 use rand::Rng;
 use super::evaluation;
 use super::simulator;
-use super::formatter;
 
 const MAX_ROLLOUT_TICKS: i32 = 50;
 const MAX_STRATEGY_GENERATION_MILLISECONDS: u128 = 90;
