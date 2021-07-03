@@ -21,11 +21,15 @@ pub fn next(world: &mut World, action: &Action) -> Vec<Event> {
     world.tick += 1;
 
     let mut events = Vec::<Event>::new();
-    move_zombies(world);
-    move_ash(world, &action);
-    destroy_zombies(world, &mut events);
-    destroy_humans(world, &mut events);
-    update_zombie_targets(world);
+    if !is_over(world) {
+        move_zombies(world);
+        move_ash(world, &action);
+        destroy_zombies(world, &mut events);
+        destroy_humans(world, &mut events);
+        update_zombie_targets(world);
+
+        emit_ending(world, &mut events);
+    }
     events
 }
 
@@ -104,10 +108,16 @@ fn destroy_humans(world: &mut World, events: &mut Vec<Event>) {
     for human_id in human_ids_to_delete.iter() {
         world.humans.remove(human_id);
     }
+}
 
+fn is_over(world: &World) -> bool {
+    world.humans.len() == 0 || world.zombies.len() == 0
+}
+
+fn emit_ending(world: &mut World, events: &mut Vec<Event>) {
     if world.humans.len() == 0 {
-        events.push(Event::Ending { tick: world.tick, won: false })
+        events.push(Event::Ending { tick: world.tick, won: false });
     } else if world.zombies.len() == 0 {
-        events.push(Event::Ending { tick: world.tick, won: true })
+        events.push(Event::Ending { tick: world.tick, won: true });
     }
 }

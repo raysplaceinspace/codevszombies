@@ -15,7 +15,7 @@ impl ScoreAccumulator {
     }
 
     pub fn evaluate_strategy(&mut self, strategy: &Strategy) {
-        self.total_score += POINTS_PER_MILESTONE * strategy.milestones.len() as f32;
+        self.total_score += POINTS_PER_MILESTONE * (strategy.milestones.len() as f32);
     }
 
     pub fn accumulate(&mut self, events: &Vec<Event>) {
